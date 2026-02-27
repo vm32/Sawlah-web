@@ -30,4 +30,7 @@ TOOL_PATHS = {
     "hashcat": "/usr/bin/hashcat",
     "whois": "/usr/bin/whois",
     "dig": "/usr/bin/dig",
+    "hashid": "/usr/bin/hashid",
+    "hash-identifier": "/usr/bin/hash-identifier",
+    "wordlists": "/usr/bin/wordlists",
 }

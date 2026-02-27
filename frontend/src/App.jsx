@@ -10,6 +10,7 @@ import NXC from "./pages/NXC";
 import Enum from "./pages/Enum";
 import Exploit from "./pages/Exploit";
 import PasswordAttack from "./pages/PasswordAttack";
+import HashDiscovery from "./pages/HashDiscovery";
 import Automation from "./pages/Automation";
 import Reports from "./pages/Reports";
 
@@ -35,6 +36,7 @@ export default function App() {
         <Route path="/enum" element={<Enum {...terminalProps} />} />
         <Route path="/exploit" element={<Exploit {...terminalProps} />} />
         <Route path="/password" element={<PasswordAttack {...terminalProps} />} />
+        <Route path="/hash" element={<HashDiscovery {...terminalProps} />} />
         <Route path="/automation" element={<Automation {...terminalProps} />} />
         <Route path="/reports" element={<Reports {...terminalProps} />} />
       </Routes>

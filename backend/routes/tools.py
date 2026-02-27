@@ -5,6 +5,9 @@ from typing import Optional
 from datetime import datetime, timezone
 from sqlalchemy import select
 
+import shutil
+import re
+
 from tool_runner import runner, new_task_id, tasks
 from database import async_session, Scan, Finding
 from tools.nmap_tool import build_nmap_command, parse_nmap_output
@@ -16,6 +19,7 @@ from tools.enum_tool import build_enum_command
 from tools.exploit import build_exploit_command
 from tools.password import build_password_command
 from tools.recon import build_recon_command
+from tools.hash_tool import build_hash_command
 
 router = APIRouter()
 
@@ -40,6 +44,10 @@ TOOL_BUILDERS = {
     "hashcat": build_password_command,
     "whois": build_recon_command,
     "dig": build_recon_command,
+    "hashid": build_hash_command,
+    "hash_identifier": build_hash_command,
+    "hashcat_crack": build_hash_command,
+    "john_crack": build_hash_command,
 }
 
 
@@ -199,6 +207,64 @@ async def ws_tool_output(websocket: WebSocket, task_id: str):
             await asyncio.sleep(0.1)
     except WebSocketDisconnect:
         pass
+
+
+@router.post("/auto-exploit")
+async def auto_exploit_from_nmap(data: dict):
+    """Parse nmap output for service versions and auto-search exploits."""
+    nmap_task_id = data.get("task_id", "")
+    nmap_output = data.get("output", "")
+
+    if nmap_task_id and not nmap_output:
+        task = tasks.get(nmap_task_id)
+        if task:
+            nmap_output = task.get("output", "")
+
+    if not nmap_output:
+        return {"error": "No nmap output provided or found"}
+
+    service_pattern = re.compile(
+        r"(\d+)/(tcp|udp)\s+open\s+(\S+)\s*(.*)"
+    )
+    services = []
+    for line in nmap_output.splitlines():
+        m = service_pattern.search(line)
+        if m:
+            port, proto, service, version = m.groups()
+            version = version.strip()
+            if version:
+                services.append({
+                    "port": port, "proto": proto,
+                    "service": service, "version": version,
+                })
+
+    if not services:
+        return {"error": "No services with versions found in nmap output", "raw_output": nmap_output[:500]}
+
+    searchsploit_bin = shutil.which("searchsploit")
+    if not searchsploit_bin:
+        return {"error": "searchsploit not found on system"}
+
+    results = []
+    for svc in services:
+        query = f"{svc['service']} {svc['version']}"
+        task_id = new_task_id()
+        command = [searchsploit_bin, query]
+
+        async def _run(tid=task_id, cmd=command, q=query, s=svc):
+            output = await runner.run(tid, cmd, tool_name="searchsploit")
+            return {"query": q, "service": s, "task_id": tid, "output": output}
+
+        asyncio.create_task(_run())
+        results.append({
+            "task_id": task_id,
+            "query": query,
+            "service": svc,
+            "command": " ".join(command),
+            "status": "running",
+        })
+
+    return {"services": services, "exploit_searches": results}
 
 
 @router.get("/history")
