@@ -49,6 +49,28 @@ class ToolRunRequest(BaseModel):
     project_id: Optional[int] = None
 
 
+class RawCommandRequest(BaseModel):
+    command: str
+    tool_name: str = "manual"
+    project_id: Optional[int] = None
+
+
+ALLOWED_BINARIES = {
+    "nmap", "sqlmap", "amass", "gobuster", "dnsenum", "nikto", "dirb",
+    "ffuf", "whatweb", "wfuzz", "nxc", "netexec", "enum4linux", "smbclient",
+    "searchsploit", "hydra", "john", "hashcat", "whois", "dig", "host",
+    "nslookup", "traceroute", "ping", "curl", "wget", "masscan", "rustscan",
+    "fierce", "dnsrecon", "theHarvester", "sublist3r", "wpscan", "nuclei",
+    "feroxbuster", "dirsearch", "arjun", "paramspider", "wafw00f",
+    "sslscan", "sslyze", "testssl.sh", "crackmapexec", "impacket-smbclient",
+    "impacket-psexec", "impacket-wmiexec", "impacket-secretsdump",
+    "responder", "msfconsole", "msfvenom", "xsstrike", "commix",
+    "arp-scan", "nbtscan", "snmpwalk", "onesixtyone", "rpcclient",
+    "ldapsearch", "bloodhound-python", "certipy", "evil-winrm",
+    "cat", "grep", "awk", "sed", "head", "tail", "wc", "sort", "uniq",
+}
+
+
 @router.post("/run")
 async def run_tool(req: ToolRunRequest):
     builder = TOOL_BUILDERS.get(req.tool_name)
@@ -92,6 +114,44 @@ async def run_tool(req: ToolRunRequest):
         "task_id": task_id,
         "command": " ".join(command),
         "scan_id": scan_id,
+        "status": "running",
+    }
+
+
+@router.post("/run-raw")
+async def run_raw_command(req: RawCommandRequest):
+    """Execute a raw command string. Only allowed pentesting binaries."""
+    import shlex
+    raw = req.command.strip()
+    if not raw:
+        return {"error": "Empty command"}
+
+    try:
+        parts = shlex.split(raw)
+    except ValueError as e:
+        return {"error": f"Invalid command syntax: {e}"}
+
+    binary = parts[0].split("/")[-1]
+    if binary not in ALLOWED_BINARIES:
+        return {"error": f"Binary '{binary}' is not in the allowed list. Allowed: {', '.join(sorted(ALLOWED_BINARIES))}"}
+
+    import shutil
+    full_path = shutil.which(binary)
+    if not full_path:
+        return {"error": f"Binary '{binary}' not found on system"}
+
+    command = [full_path] + parts[1:]
+    task_id = new_task_id()
+    tool_name = req.tool_name if req.tool_name != "manual" else binary
+
+    async def _run():
+        await runner.run(task_id, command, tool_name=tool_name)
+
+    asyncio.create_task(_run())
+
+    return {
+        "task_id": task_id,
+        "command": " ".join(command),
         "status": "running",
     }
 

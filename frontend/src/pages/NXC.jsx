@@ -114,7 +114,7 @@ export default function NXC({ setOutput, setTitle }) {
           </div>
         </div>
 
-        <OutputPanel onRun={handleRun} onStop={handleStop} status={status} command={command} output={ws.output} history={history} />
+        <OutputPanel onRun={handleRun} onStop={handleStop} status={status} command={command} output={ws.output} history={history} toolName="nxc" />
       </div>
     </div>
   );

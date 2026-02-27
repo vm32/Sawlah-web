@@ -14,6 +14,8 @@ export const projectsApi = {
 export const toolsApi = {
   run: (toolName, params, projectId = null) =>
     api.post("/tools/run", { tool_name: toolName, params, project_id: projectId }),
+  runRaw: (command, toolName = "manual") =>
+    api.post("/tools/run-raw", { command, tool_name: toolName }),
   status: (taskId) => api.get(`/tools/status/${taskId}`),
   kill: (taskId) => api.delete(`/tools/kill/${taskId}`),
   list: () => api.get("/tools/list"),

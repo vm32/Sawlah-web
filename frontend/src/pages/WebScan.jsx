@@ -14,6 +14,16 @@ const TOOLS = [
   { value: "wfuzz", label: "Wfuzz - Web application fuzzer" },
 ];
 
+const WORDLISTS = [
+  { value: "/usr/share/wordlists/dirb/common.txt", label: "dirb/common.txt" },
+  { value: "/usr/share/wordlists/dirb/big.txt", label: "dirb/big.txt" },
+  { value: "/usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt", label: "dirbuster medium" },
+  { value: "/usr/share/wordlists/dirbuster/directory-list-2.3-small.txt", label: "dirbuster small" },
+  { value: "/usr/share/wordlists/seclists/Discovery/Web-Content/raft-medium-directories.txt", label: "raft-medium-dirs" },
+  { value: "/usr/share/wordlists/seclists/Discovery/Web-Content/raft-medium-files.txt", label: "raft-medium-files" },
+  { value: "custom", label: "Custom path..." },
+];
+
 export default function WebScan({ setOutput, setTitle }) {
   const [tool, setTool] = useState("nikto");
   const [target, setTarget] = useState("");
@@ -29,6 +39,11 @@ export default function WebScan({ setOutput, setTitle }) {
   const [hc, setHc] = useState("404");
   const [aggression, setAggression] = useState("1");
   const [verbose, setVerbose] = useState(false);
+  const [cookie, setCookie] = useState("");
+  const [headers, setHeaders] = useState("");
+  const [proxy, setProxy] = useState("");
+  const [followRedirects, setFollowRedirects] = useState(true);
+  const [wordlistPreset, setWordlistPreset] = useState("/usr/share/wordlists/dirb/common.txt");
   const [extraFlags, setExtraFlags] = useState("");
   const [taskId, setTaskId] = useState(null);
   const [status, setStatus] = useState(null);
@@ -117,10 +132,16 @@ export default function WebScan({ setOutput, setTitle }) {
               <div className="flex items-end pb-1"><CheckboxInput checked={verbose} onChange={setVerbose} label="Verbose" /></div>
             </div>
           )}
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Cookie"><TextInput value={cookie} onChange={setCookie} placeholder="PHPSESSID=abc123" /></FormField>
+            <FormField label="Custom Headers" hint="Header: Value"><TextInput value={headers} onChange={setHeaders} placeholder="X-Forwarded-For: 127.0.0.1" /></FormField>
+          </div>
+          <FormField label="Proxy"><TextInput value={proxy} onChange={setProxy} placeholder="http://127.0.0.1:8080" /></FormField>
+          <CheckboxInput checked={followRedirects} onChange={setFollowRedirects} label="Follow redirects" />
           <FormField label="Extra Flags"><TextInput value={extraFlags} onChange={setExtraFlags} placeholder="Additional flags" /></FormField>
         </div>
 
-        <OutputPanel onRun={handleRun} onStop={handleStop} status={status} command={command} output={ws.output} history={history} />
+        <OutputPanel onRun={handleRun} onStop={handleStop} status={status} command={command} output={ws.output} history={history} toolName={tool} />
       </div>
     </div>
   );

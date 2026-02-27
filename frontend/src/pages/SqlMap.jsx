@@ -31,6 +31,9 @@ export default function SqlMap({ setOutput, setTitle }) {
   const [randomAgent, setRandomAgent] = useState(true);
   const [threads, setThreads] = useState("5");
   const [extraFlags, setExtraFlags] = useState("");
+  const [cookie, setCookie] = useState("");
+  const [userAgent, setUserAgent] = useState("");
+  const [proxy, setProxy] = useState("");
   const [taskId, setTaskId] = useState(null);
   const [status, setStatus] = useState(null);
   const [command, setCommand] = useState("");
@@ -67,6 +70,7 @@ export default function SqlMap({ setOutput, setTitle }) {
       current_user: currentUser, is_dba: isDba,
       database, table, random_agent: randomAgent,
       threads: parseInt(threads) || 5, extra_flags: extraFlags,
+      cookie, user_agent: userAgent, proxy,
     };
     try {
       const res = await toolsApi.run("sqlmap", params);
@@ -114,6 +118,11 @@ export default function SqlMap({ setOutput, setTitle }) {
             <FormField label="Database (-D)"><TextInput value={database} onChange={setDatabase} placeholder="database_name" /></FormField>
             <FormField label="Table (-T)"><TextInput value={table} onChange={setTable} placeholder="table_name" /></FormField>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Cookie"><TextInput value={cookie} onChange={setCookie} placeholder="PHPSESSID=abc123" /></FormField>
+            <FormField label="User-Agent"><TextInput value={userAgent} onChange={setUserAgent} placeholder="Custom UA string" /></FormField>
+          </div>
+          <FormField label="Proxy" hint="e.g. http://127.0.0.1:8080"><TextInput value={proxy} onChange={setProxy} placeholder="http://127.0.0.1:8080" /></FormField>
           <FormField label="Extra Flags"><TextInput value={extraFlags} onChange={setExtraFlags} placeholder="--os-shell" /></FormField>
           <div className="grid grid-cols-2 gap-3">
             <CheckboxInput checked={dbs} onChange={setDbs} label="List databases (--dbs)" />
@@ -127,7 +136,7 @@ export default function SqlMap({ setOutput, setTitle }) {
           </div>
         </div>
 
-        <OutputPanel onRun={handleRun} onStop={handleStop} status={status} command={command} output={ws.output} history={history} />
+        <OutputPanel onRun={handleRun} onStop={handleStop} status={status} command={command} output={ws.output} history={history} toolName="sqlmap" />
       </div>
     </div>
   );

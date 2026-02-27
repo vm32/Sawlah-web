@@ -56,6 +56,18 @@ def build_sqlmap_command(tool_name: str, params: dict) -> list[str]:
     if params.get("threads"):
         cmd.extend(["--threads", str(params["threads"])])
 
+    cookie = params.get("cookie", "").strip()
+    if cookie:
+        cmd.extend(["--cookie", cookie])
+
+    user_agent = params.get("user_agent", "").strip()
+    if user_agent:
+        cmd.extend(["--user-agent", user_agent])
+
+    proxy = params.get("proxy", "").strip()
+    if proxy:
+        cmd.extend(["--proxy", proxy])
+
     cmd.append("--batch")
 
     extra = params.get("extra_flags", "").strip()
