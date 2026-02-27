@@ -1,7 +1,8 @@
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Radar, Globe, SearchCode, Database, Network,
-  Shield, Key, Workflow, FileText, Server, Bug, Fingerprint
+  Shield, Key, Workflow, FileText, Server, Bug, Fingerprint,
+  Crosshair, Map, LogOut, User
 } from "lucide-react";
 
 const NAV_SECTIONS = [
@@ -9,6 +10,7 @@ const NAV_SECTIONS = [
     label: "Main",
     items: [
       { to: "/", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/recon-map", label: "Recon Map", icon: Map },
     ],
   },
   {
@@ -17,6 +19,7 @@ const NAV_SECTIONS = [
       { to: "/nmap", label: "Nmap Scanner", icon: Radar },
       { to: "/subenum", label: "Sub Enumeration", icon: Globe },
       { to: "/webscan", label: "Web Scanning", icon: SearchCode },
+      { to: "/advanced", label: "Advanced Scan", icon: Crosshair },
     ],
   },
   {
@@ -49,7 +52,7 @@ const NAV_SECTIONS = [
   },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ user, onLogout }) {
   return (
     <aside className="w-60 h-screen bg-sawlah-surface border-r border-sawlah-border flex flex-col fixed left-0 top-0 z-40">
       <div className="px-5 py-5 border-b border-sawlah-border">
@@ -88,8 +91,19 @@ export default function Sidebar() {
           </div>
         ))}
       </nav>
-      <div className="px-4 py-3 border-t border-sawlah-border text-[11px] text-sawlah-dim">
-        Sawlah-web v1.0 &middot; Kali Linux
+      <div className="px-3 py-3 border-t border-sawlah-border space-y-2">
+        {user && (
+          <div className="flex items-center justify-between px-3 py-1.5">
+            <div className="flex items-center gap-2">
+              <User className="w-3.5 h-3.5 text-sawlah-red" />
+              <span className="text-xs font-medium text-sawlah-muted">{user.username}</span>
+            </div>
+            <button onClick={onLogout} className="p-1 text-sawlah-dim hover:text-sawlah-red transition-colors" title="Logout">
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+        <p className="text-[10px] text-sawlah-dim/60 text-center">Sawlah-web v2.0 &middot; Kali Linux</p>
       </div>
     </aside>
   );

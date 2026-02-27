@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@xterm/xterm/css/xterm.css";
+@import "@xyflow/react/dist/style.css";
 
 @theme {
   --color-sawlah-bg: #0a0a0a;
@@ -63,4 +64,35 @@ select option {
 
 .animate-shimmer {
   animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+.react-flow__node {
+  font-family: var(--font-sans);
+}
+
+.react-flow__edge-path {
+  stroke-opacity: 0.6;
+}
+
+.react-flow__controls button {
+  background: #111 !important;
+  border-color: #2a2a2a !important;
+  color: #a1a1aa !important;
+}
+
+.react-flow__controls button:hover {
+  background: #1a1a1a !important;
+}
+
+.react-flow__minimap {
+  background: #0a0a0a !important;
 }

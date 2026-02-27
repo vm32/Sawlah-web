@@ -1,4 +1,4 @@
-import { Play, Square, Loader2 } from "lucide-react";
+import { Play, Square, Loader2, Skull } from "lucide-react";
 
 export function FormField({ label, children, hint }) {
   return (
@@ -56,25 +56,30 @@ export function CheckboxInput({ checked, onChange, label }) {
 }
 
 export function RunButton({ onClick, running, onStop }) {
-  if (running) {
-    return (
-      <button
-        onClick={onStop}
-        className="flex items-center gap-2 px-6 py-2.5 bg-sawlah-red-hover text-white rounded-lg font-semibold text-sm hover:bg-red-800 transition-colors"
-      >
-        <Square className="w-4 h-4" />
-        Stop
-      </button>
-    );
-  }
   return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-2 px-6 py-2.5 bg-sawlah-red text-white rounded-lg font-semibold text-sm hover:bg-sawlah-red-hover transition-colors shadow-lg shadow-sawlah-red-glow"
-    >
-      <Play className="w-4 h-4" />
-      Run
-    </button>
+    <div className="flex items-center gap-2">
+      <button
+        onClick={onClick}
+        disabled={running}
+        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all ${
+          running
+            ? "bg-sawlah-surface text-sawlah-dim cursor-not-allowed border border-sawlah-border"
+            : "bg-sawlah-red text-white hover:bg-sawlah-red-hover shadow-lg shadow-sawlah-red-glow"
+        }`}
+      >
+        {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+        {running ? "Running..." : "Run"}
+      </button>
+      {running && (
+        <button
+          onClick={onStop}
+          className="flex items-center gap-2 px-4 py-2.5 bg-red-900/60 text-red-300 border border-red-700/50 rounded-lg font-semibold text-sm hover:bg-red-800/80 hover:text-white transition-all"
+        >
+          <Skull className="w-4 h-4" />
+          Kill
+        </button>
+      )}
+    </div>
   );
 }
 

@@ -9,6 +9,32 @@ from fastapi import WebSocket
 
 tasks: dict[str, dict] = {}
 
+def _notify_completion(task_id: str, task: dict):
+    try:
+        from notifications import add_notification
+        status = task["status"]
+        tool = task.get("tool_name", "unknown")
+        if status == "completed":
+            add_notification(
+                title=f"{tool} scan completed",
+                message=f"Task {task_id} finished successfully",
+                severity="success", tool_name=tool, task_id=task_id,
+            )
+        elif status == "error":
+            add_notification(
+                title=f"{tool} scan failed",
+                message=f"Task {task_id} exited with error",
+                severity="error", tool_name=tool, task_id=task_id,
+            )
+        elif status == "killed":
+            add_notification(
+                title=f"{tool} scan killed",
+                message=f"Task {task_id} was terminated by user",
+                severity="warning", tool_name=tool, task_id=task_id,
+            )
+    except Exception:
+        pass
+
 
 class ToolRunner:
     """Core engine: spawns CLI tools as async subprocesses and streams output via WebSocket."""
@@ -60,12 +86,14 @@ class ToolRunner:
             tasks[task_id]["status"] = "completed" if process.returncode == 0 else "error"
             tasks[task_id]["finished_at"] = datetime.now(timezone.utc).isoformat()
             tasks[task_id]["return_code"] = process.returncode
+            _notify_completion(task_id, tasks[task_id])
 
         except Exception as e:
             tasks[task_id]["status"] = "error"
             tasks[task_id]["output"] += f"\n[ERROR] {str(e)}\n"
             tasks[task_id]["finished_at"] = datetime.now(timezone.utc).isoformat()
             full_output = tasks[task_id]["output"]
+            _notify_completion(task_id, tasks[task_id])
         finally:
             self.active.pop(task_id, None)
 
@@ -81,6 +109,7 @@ class ToolRunner:
                     proc.kill()
                 tasks[task_id]["status"] = "killed"
                 tasks[task_id]["finished_at"] = datetime.now(timezone.utc).isoformat()
+                _notify_completion(task_id, tasks[task_id])
                 return True
             except Exception:
                 return False

@@ -20,6 +20,7 @@ from tools.exploit import build_exploit_command
 from tools.password import build_password_command
 from tools.recon import build_recon_command
 from tools.hash_tool import build_hash_command
+from tools.advanced_scan import build_advanced_scan_command
 
 router = APIRouter()
 
@@ -48,6 +49,10 @@ TOOL_BUILDERS = {
     "hash_identifier": build_hash_command,
     "hashcat_crack": build_hash_command,
     "john_crack": build_hash_command,
+    "nuclei": build_advanced_scan_command,
+    "wafw00f": build_advanced_scan_command,
+    "feroxbuster": build_advanced_scan_command,
+    "wpscan": build_advanced_scan_command,
 }
 
 

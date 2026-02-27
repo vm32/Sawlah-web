@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sawlah-web Report - HTB</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #fff; padding: 40px; }
+        .header { border-bottom: 3px solid #dc2626; padding-bottom: 20px; margin-bottom: 30px; }
+        .header h1 { color: #dc2626; font-size: 28px; }
+        .header .subtitle { color: #a1a1aa; margin-top: 5px; }
+        .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .meta-card { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 15px; }
+        .meta-card h3 { color: #dc2626; margin-bottom: 8px; font-size: 14px; text-transform: uppercase; }
+        .meta-card p { color: #e5e5e5; }
+        .section { margin-bottom: 30px; }
+        .section h2 { color: #dc2626; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 15px; }
+        .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; }
+        .stat { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 20px; text-align: center; }
+        .stat .number { font-size: 32px; font-weight: bold; color: #dc2626; }
+        .stat .label { color: #a1a1aa; font-size: 12px; text-transform: uppercase; margin-top: 5px; }
+        .scan-card { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 15px; margin-bottom: 15px; }
+        .scan-card .tool { color: #dc2626; font-weight: bold; font-size: 16px; }
+        .scan-card .cmd { color: #a1a1aa; font-family: monospace; font-size: 12px; margin: 8px 0; word-break: break-all; }
+        .scan-card .status { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 12px; }
+        .status-completed { background: #166534; color: #4ade80; }
+        .status-error { background: #7f1d1d; color: #fca5a5; }
+        .output-block { background: #000; border: 1px solid #333; border-radius: 4px; padding: 12px; margin-top: 10px;
+            font-family: monospace; font-size: 11px; color: #4ade80; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+        .finding { background: #1a1a1a; border-left: 4px solid; border-radius: 4px; padding: 12px; margin-bottom: 10px; }
+        .finding.critical { border-color: #dc2626; }
+        .finding.high { border-color: #ea580c; }
+        .finding.medium { border-color: #ca8a04; }
+        .finding.low { border-color: #2563eb; }
+        .finding.info { border-color: #6b7280; }
+        .finding .sev { font-size: 11px; text-transform: uppercase; font-weight: bold; }
+        .finding .title { font-size: 15px; margin-top: 4px; }
+        .finding .desc { color: #a1a1aa; margin-top: 6px; font-size: 13px; }
+        .footer { border-top: 1px solid #333; padding-top: 15px; margin-top: 40px; color: #6b7280; font-size: 12px; text-align: center; }
+        @media print { body { background: #fff; color: #000; } .header h1, .section h2, .scan-card .tool, .stat .number { color: #dc2626; } .meta-card, .scan-card, .stat, .finding { border-color: #ccc; background: #f9f9f9; } .output-block { background: #f0f0f0; color: #000; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>SAWLAH-WEB // Penetration Test Report</h1>
+        <div class="subtitle">Project: HTB | Generated: 2026-02-27 17:13 UTC</div>
+    </div>
+    <div class="meta">
+        <div class="meta-card"><h3>Target</h3><p>10.129.231.23</p></div>
+        <div class="meta-card"><h3>Scope</h3><p>test the report </p></div>
+    </div>
+    <div class="summary">
+        <div class="stat"><div class="number">0</div><div class="label">Total Scans</div></div>
+        <div class="stat"><div class="number">0</div><div class="label">Findings</div></div>
+        <div class="stat"><div class="number">0</div><div class="label">Completed</div></div>
+    </div>
+    <div class="section">
+        <h2>Executive Summary</h2>
+        <p style="color:#ccc;line-height:1.6;">This report documents the results of the penetration test conducted against <strong>10.129.231.23</strong>
+        as part of the <strong>HTB</strong> engagement. A total of 0 scans were performed
+        using various tools, yielding 0 findings. Below are the detailed results of each scan and the associated findings.</p>
+    </div>
+    <div class="section">
+        <h2>Scan Results</h2>
+        
+    </div>
+    
+    <div class="footer">
+        Sawlah-web Penetration Testing Framework | Report generated automatically | 2026-02-27 17:13 UTC
+    </div>
+</body>
+</html>
