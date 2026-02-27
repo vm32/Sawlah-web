@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+websockets
+aiofiles
+aiosqlite
+sqlalchemy
+python-multipart
+jinja2

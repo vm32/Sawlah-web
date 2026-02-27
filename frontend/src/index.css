@@ -1,0 +1,57 @@
+@import "tailwindcss";
+@import "@xterm/xterm/css/xterm.css";
+
+@theme {
+  --color-sawlah-bg: #0a0a0a;
+  --color-sawlah-surface: #111111;
+  --color-sawlah-card: #1a1a1a;
+  --color-sawlah-border: #2a2a2a;
+  --color-sawlah-red: #dc2626;
+  --color-sawlah-red-hover: #b91c1c;
+  --color-sawlah-red-glow: #dc262633;
+  --color-sawlah-text: #ffffff;
+  --color-sawlah-muted: #a1a1aa;
+  --color-sawlah-dim: #71717a;
+  --color-sawlah-green: #4ade80;
+  --color-sawlah-yellow: #facc15;
+  --color-sawlah-orange: #fb923c;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #333 #0a0a0a;
+}
+
+body {
+  margin: 0;
+  background: #0a0a0a;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.xterm {
+  padding: 8px;
+}
+
+input, select, textarea {
+  background: #111111;
+  border: 1px solid #2a2a2a;
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #dc2626;
+}
+
+select option {
+  background: #111111;
+  color: #ffffff;
+}
