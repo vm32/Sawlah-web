@@ -7,6 +7,7 @@ import Nmap from "./pages/Nmap";
 import SqlMap from "./pages/SqlMap";
 import SubEnum from "./pages/SubEnum";
 import WebScan from "./pages/WebScan";
+import Nikto from "./pages/Nikto";
 import NXC from "./pages/NXC";
 import Enum from "./pages/Enum";
 import Exploit from "./pages/Exploit";
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/nmap" element={<Nmap {...terminalProps} />} />
         <Route path="/sqlmap" element={<SqlMap {...terminalProps} />} />
         <Route path="/subenum" element={<SubEnum {...terminalProps} />} />
+        <Route path="/nikto" element={<Nikto {...terminalProps} />} />
         <Route path="/webscan" element={<WebScan {...terminalProps} />} />
         <Route path="/nxc" element={<NXC {...terminalProps} />} />
         <Route path="/enum" element={<Enum {...terminalProps} />} />

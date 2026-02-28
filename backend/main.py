@@ -11,6 +11,7 @@ from routes.tools import router as tools_router
 from routes.automation import router as automation_router
 from routes.reports import router as reports_router
 from routes.recon_map import router as recon_map_router
+from routes.nikto import router as nikto_router
 from auth import router as auth_router
 
 
@@ -36,6 +37,7 @@ app.include_router(tools_router, prefix="/api/tools", tags=["tools"])
 app.include_router(automation_router, prefix="/api/automation", tags=["automation"])
 app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
 app.include_router(recon_map_router, prefix="/api/map", tags=["recon-map"])
+app.include_router(nikto_router, prefix="/api/nikto", tags=["nikto"])
 
 
 @app.get("/api/health")

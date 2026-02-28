@@ -7,13 +7,39 @@ def build_webscan_command(tool_name: str, params: dict) -> list[str]:
         return []
 
     if tool_name == "nikto":
-        cmd = [TOOL_PATHS["nikto"], "-h", target]
-        if params.get("ssl"):
+        is_full_uri = "://" in target
+        cmd = [TOOL_PATHS["nikto"], "-h", target, "-nointeractive"]
+        if params.get("ssl") and not target.startswith("https://"):
             cmd.append("-ssl")
-        if params.get("port"):
+        if params.get("port") and not is_full_uri:
             cmd.extend(["-p", str(params["port"])])
         if params.get("tuning"):
             cmd.extend(["-Tuning", params["tuning"]])
+        if params.get("mutate"):
+            cmd.extend(["-mutate", str(params["mutate"])])
+        if params.get("cgidirs"):
+            cmd.extend(["-Cgidirs", params["cgidirs"]])
+        if params.get("plugins"):
+            cmd.extend(["-Plugins", params["plugins"]])
+        if params.get("evasion"):
+            cmd.extend(["-evasion", str(params["evasion"])])
+        if params.get("timeout"):
+            cmd.extend(["-timeout", str(params["timeout"])])
+        if params.get("maxtime"):
+            cmd.extend(["-maxtime", str(params["maxtime"])])
+        if params.get("useragent"):
+            cmd.extend(["-useragent", params["useragent"]])
+        if params.get("display"):
+            cmd.extend(["-Display", params["display"]])
+        if params.get("followredirects"):
+            cmd.append("-followredirects")
+        if params.get("no404"):
+            cmd.append("-no404")
+
+        output_file = params.get("output_file", "")
+        if output_file:
+            cmd.extend(["-o", output_file, "-Format", "htm"])
+
         extra = params.get("extra_flags", "").strip()
         if extra:
             cmd.extend(extra.split())

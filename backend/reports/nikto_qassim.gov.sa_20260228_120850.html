@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nikto Scan Report - qassim.gov.sa</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;background:#0a0a0a;color:#e5e5e5;line-height:1.6;font-size:13px}
+a{color:#dc2626;text-decoration:none}
+a:hover{text-decoration:underline}
+
+.report-wrap{max-width:1100px;margin:0 auto;padding:20px}
+
+.cover{text-align:center;padding:60px 40px;border-bottom:3px solid #dc2626;margin-bottom:40px}
+.cover .logo{font-size:42px;font-weight:800;color:#dc2626;letter-spacing:2px}
+.cover .logo-sub{font-size:11px;text-transform:uppercase;letter-spacing:6px;color:#666;margin:4px 0 30px}
+.cover h1{font-size:24px;font-weight:700;color:#fff;margin-bottom:4px}
+.cover .target{font-size:18px;color:#dc2626;font-family:monospace;margin-bottom:30px}
+.cover-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left;max-width:450px;margin:0 auto}
+.cover-meta dt{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;font-weight:600}
+.cover-meta dd{font-size:13px;color:#ccc;margin-bottom:6px}
+
+.section-title{font-size:18px;font-weight:700;color:#fff;border-bottom:2px solid #dc2626;padding-bottom:6px;margin:36px 0 16px}
+
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:16px 0}
+.stat-box{background:#141414;border:1px solid #222;border-radius:8px;padding:16px;text-align:center}
+.stat-box .num{font-size:28px;font-weight:800}
+.stat-box .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;margin-top:2px}
+.num-critical{color:#dc2626}.num-high{color:#e67e22}.num-medium{color:#f1c40f}.num-low{color:#3498db}.num-info{color:#95a5a6}
+.num-total{color:#fff}
+
+.risk-bar{display:flex;height:20px;border-radius:6px;overflow:hidden;margin:12px 0;background:#1a1a1a}
+.risk-bar .seg{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}
+.seg-critical{background:#dc2626}.seg-high{background:#e67e22}.seg-medium{background:#f1c40f;color:#333}.seg-low{background:#3498db}.seg-info{background:#95a5a6}
+
+.info-table{width:100%;border-collapse:collapse;margin:12px 0}
+.info-table td{padding:8px 12px;border-bottom:1px solid #1a1a1a;font-size:13px}
+.info-table .info-label{color:#888;font-weight:600;width:160px;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+
+.findings-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
+.findings-table th{background:#1a1a1a;color:#888;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #dc2626}
+.findings-table td{padding:8px 10px;border-bottom:1px solid #1a1a1a;vertical-align:top}
+.findings-table tr:hover{background:#111}
+.finding-num{font-weight:700;color:#666;font-family:monospace}
+.finding-cat{color:#888;font-size:11px}
+
+.sev{display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;text-transform:uppercase;color:#fff}
+.sev-critical{background:#dc2626}.sev-high{background:#e67e22}.sev-medium{background:#f39c12;color:#333}.sev-low{background:#3498db}.sev-info{background:#555}
+
+.cat-group{margin:20px 0}
+.cat-group h3{font-size:15px;color:#ccc;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #222}
+.cat-count{font-size:12px;color:#666;font-weight:400}
+.cat-item{padding:8px 12px;margin:4px 0;border-radius:6px;font-size:12px;border-left:3px solid #333;background:#111}
+.cat-item .sev{margin-right:8px}
+.cat-critical{border-left-color:#dc2626}.cat-high{border-left-color:#e67e22}.cat-medium{border-left-color:#f39c12}.cat-low{border-left-color:#3498db}.cat-info{border-left-color:#555}
+
+.raw-block{background:#050505;border:1px solid #222;border-radius:8px;padding:16px;margin:12px 0;max-height:500px;overflow-y:auto;font-family:'JetBrains Mono','Fira Code',monospace;font-size:11px;line-height:1.6}
+.raw-line{padding:1px 0;white-space:pre-wrap;word-break:break-all}
+.hl-vuln{color:#dc2626;font-weight:700}
+.hl-finding{color:#4ade80}
+.hl-sep{color:#333}
+
+.footer{border-top:2px solid #dc2626;padding-top:16px;margin-top:40px;text-align:center;font-size:10px;color:#555}
+.footer .conf{font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+
+.toc{margin:16px 0}
+.toc ol{list-style:none;counter-reset:toc}
+.toc ol li{counter-increment:toc;padding:6px 0;border-bottom:1px dotted #222}
+.toc ol li::before{content:counter(toc) ". ";font-weight:700;color:#dc2626}
+.toc ol li a{color:#ccc;font-size:13px}
+
+@media print{
+  body{background:#fff;color:#1a1a2e}
+  .report-wrap{max-width:100%}
+  .cover{border-bottom-color:#c0392b}
+  .stat-box{background:#fafafa;border-color:#eee}
+  .info-table td,.findings-table td{border-bottom-color:#eee}
+  .findings-table th{background:#1a1a2e}
+  .cat-item{background:#fafafa}
+  .raw-block{background:#f7f7f7;color:#333;border-color:#ddd}
+  .hl-vuln{color:#c0392b}.hl-finding{color:#27ae60}
+  .cover .logo,.sev-critical,.seg-critical{color:#c0392b}
+  .footer{border-top-color:#c0392b}
+}
+</style>
+</head>
+<body>
+<div class="report-wrap">
+
+<div class="cover">
+  <div class="logo">SAWLAH</div>
+  <div class="logo-sub">Web Vulnerability Scanner</div>
+  <h1>Nikto Scan Report</h1>
+  <div class="target">qassim.gov.sa</div>
+  <dl class="cover-meta">
+    <dt>Scan Date</dt><dd>2026-02-28 17:16 UTC</dd>
+    <dt>Scanner</dt><dd>Nikto / Sawlah-web</dd>
+    <dt>Total Findings</dt><dd>6</dd>
+    <dt>Server</dt><dd>BigIP</dd>
+  </dl>
+</div>
+
+<div class="toc">
+  <h2 class="section-title">Table of Contents</h2>
+  <ol>
+    <li><a href="#summary">Executive Summary</a></li>
+    <li><a href="#server">Server Information</a></li>
+    <li><a href="#findings">Findings Overview</a></li>
+    <li><a href="#categories">Findings by Category</a></li>
+    <li><a href="#raw">Raw Output</a></li>
+  </ol>
+</div>
+
+<h2 class="section-title" id="summary">1. Executive Summary</h2>
+<div class="stats-grid">
+  <div class="stat-box"><div class="num num-total">6</div><div class="lbl">Total</div></div>
+  <div class="stat-box"><div class="num num-critical">0</div><div class="lbl">Critical</div></div>
+  <div class="stat-box"><div class="num num-high">0</div><div class="lbl">High</div></div>
+  <div class="stat-box"><div class="num num-medium">0</div><div class="lbl">Medium</div></div>
+  <div class="stat-box"><div class="num num-low">6</div><div class="lbl">Low / Info</div></div>
+</div>
+<div class="risk-bar"><div class="seg seg-info" style="width:100%">6</div></div>
+<p style="color:#888;margin:12px 0">
+  Nikto scanned <strong style="color:#ccc">qassim.gov.sa</strong> and tested approximately
+  <strong style="color:#ccc">0</strong> items, identifying
+  <strong style="color:#ccc">6</strong> potential findings.
+  
+</p>
+
+<h2 class="section-title" id="server">2. Server Information</h2>
+<table class="info-table">
+  <tr><td class='info-label'>Ip</td><td>86.51.13.30</td></tr><tr><td class='info-label'>Hostname</td><td>qassim.gov.sa</td></tr><tr><td class='info-label'>Port</td><td>80</td></tr><tr><td class='info-label'>Server</td><td>BigIP</td></tr>
+</table>
+
+<h2 class="section-title" id="findings">3. Findings Overview</h2>
+<table class="findings-table">
+  <thead><tr><th>#</th><th>Severity</th><th>Category</th><th>Reference</th><th>Detail</th></tr></thead>
+  <tbody>
+        <tr>
+            <td class="finding-num">N-001</td>
+            <td><span class="sev sev-info">INFO</span></td>
+            <td class="finding-cat">General</td>
+            <td>Multiple IPs found</td>
+            <td>86.51.13.30, 2a00:f580:1001:1100::8</td>
+        </tr>
+        <tr>
+            <td class="finding-num">N-002</td>
+            <td><span class="sev sev-info">INFO</span></td>
+            <td class="finding-cat">General</td>
+            <td>Start Time</td>
+            <td>2026-02-28 12:08:50 (GMT-5)</td>
+        </tr>
+        <tr>
+            <td class="finding-num">N-003</td>
+            <td><span class="sev sev-info">INFO</span></td>
+            <td class="finding-cat">General</td>
+            <td>Root page / redirects to</td>
+            <td>https://qassim.gov.sa/</td>
+        </tr>
+        <tr>
+            <td class="finding-num">N-004</td>
+            <td><span class="sev sev-info">INFO</span></td>
+            <td class="finding-cat">General</td>
+            <td>ERROR</td>
+            <td>Error limit (20) reached for host, giving up. Last error: opening stream: can't connect (timeout): Operation now in progress</td>
+        </tr>
+        <tr>
+            <td class="finding-num">N-005</td>
+            <td><span class="sev sev-info">INFO</span></td>
+            <td class="finding-cat">General</td>
+            <td>Scan terminated</td>
+            <td>20 error(s) and 2 item(s) reported on remote host</td>
+        </tr>
+        <tr>
+            <td class="finding-num">N-006</td>
+            <td><span class="sev sev-info">INFO</span></td>
+            <td class="finding-cat">General</td>
+            <td>End Time</td>
+            <td>2026-02-28 12:16:13 (GMT-5) (443 seconds)</td>
+        </tr></tbody>
+</table>
+
+<h2 class="section-title" id="categories">4. Findings by Category</h2>
+
+        <div class="cat-group">
+            <h3>General <span class="cat-count">(6)</span></h3>
+            
+            <div class="cat-item cat-info">
+                <span class="sev sev-info">INFO</span>
+                <strong>Multiple IPs found</strong> &mdash; 86.51.13.30, 2a00:f580:1001:1100::8
+            </div>
+            <div class="cat-item cat-info">
+                <span class="sev sev-info">INFO</span>
+                <strong>Start Time</strong> &mdash; 2026-02-28 12:08:50 (GMT-5)
+            </div>
+            <div class="cat-item cat-info">
+                <span class="sev sev-info">INFO</span>
+                <strong>Root page / redirects to</strong> &mdash; https://qassim.gov.sa/
+            </div>
+            <div class="cat-item cat-info">
+                <span class="sev sev-info">INFO</span>
+                <strong>ERROR</strong> &mdash; Error limit (20) reached for host, giving up. Last error: opening stream: can't connect (timeout): Operation now in progress
+            </div>
+            <div class="cat-item cat-info">
+                <span class="sev sev-info">INFO</span>
+                <strong>Scan terminated</strong> &mdash; 20 error(s) and 2 item(s) reported on remote host
+            </div>
+            <div class="cat-item cat-info">
+                <span class="sev sev-info">INFO</span>
+                <strong>End Time</strong> &mdash; 2026-02-28 12:16:13 (GMT-5) (443 seconds)
+            </div>
+        </div>
+
+<h2 class="section-title" id="raw">5. Raw Nikto Output</h2>
+<div class="raw-block"><div class="raw-line hl-sep">- Nikto v2.5.0</div><div class="raw-line hl-sep">---------------------------------------------------------------------------</div><div class="raw-line hl-finding">+ Multiple IPs found: 86.51.13.30, 2a00:f580:1001:1100::8</div><div class="raw-line hl-finding">+ Target IP:          86.51.13.30</div><div class="raw-line hl-finding">+ Target Hostname:    qassim.gov.sa</div><div class="raw-line hl-finding">+ Target Port:        80</div><div class="raw-line hl-finding">+ Start Time:         2026-02-28 12:08:50 (GMT-5)</div><div class="raw-line hl-sep">---------------------------------------------------------------------------</div><div class="raw-line hl-finding">+ Server: BigIP</div><div class="raw-line hl-finding">+ /: The anti-clickjacking X-Frame-Options header is not present. See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options</div><div class="raw-line hl-finding">+ /: The X-Content-Type-Options header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type. See: https://www.netsparker.com/web-vulnerability-scanner/vulnerabilities/missing-content-type-header/</div><div class="raw-line hl-finding">+ Root page / redirects to: https://qassim.gov.sa/</div><div class="raw-line hl-finding">+ No CGI Directories found (use '-C all' to force check all possible dirs)</div><div class="raw-line hl-finding">+ ERROR: Error limit (20) reached for host, giving up. Last error: opening stream: can't connect (timeout): Operation now in progress</div><div class="raw-line hl-finding">+ Scan terminated: 20 error(s) and 2 item(s) reported on remote host</div><div class="raw-line hl-finding">+ End Time:           2026-02-28 12:16:13 (GMT-5) (443 seconds)</div><div class="raw-line hl-sep">---------------------------------------------------------------------------</div><div class="raw-line hl-finding">+ 1 host(s) tested</div></div>
+
+<div class="footer">
+  <div class="conf">Confidential &mdash; Security Assessment</div>
+  Sawlah-web Penetration Testing Framework | Nikto Report generated 2026-02-28 17:16 UTC
+</div>
+
+</div>
+</body>
+</html>

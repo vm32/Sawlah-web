@@ -112,12 +112,45 @@ def extract_findings_from_output(tool_name: str, command: str, output: str) -> l
                 "remediation": REMEDIATION_MAP["sql_injection"],
             })
 
-    elif tool_name in ("nikto", "whatweb"):
+    elif tool_name == "nikto":
+        for m in re.finditer(r"\+\s+(OSVDB-\d+):\s*(.*?)(?:\n|$)", output):
+            ref = m.group(1)
+            detail = m.group(2).strip()
+            sev = "medium"
+            if re.search(r"VULNERABLE|injection|XSS|remote\s+code|backdoor", detail, re.I):
+                sev = "critical"
+            elif re.search(r"header|cookie|disclosure|version", detail, re.I):
+                sev = "low"
+            findings.append({
+                "severity": sev,
+                "title": f"Nikto [{ref}]: {detail[:70]}",
+                "description": detail,
+                "evidence": m.group(0).strip(),
+                "component": "", "tool": tool_name, "command": command,
+                "remediation": REMEDIATION_MAP["vuln_detected"],
+            })
+        for m in re.finditer(r"\+\s+(/\S+.*?)(?:\n|$)", output):
+            line = m.group(1).strip()
+            if len(line) > 10 and "OSVDB" not in line:
+                sev = "info"
+                if re.search(r"directory listing|index of|default|enabled", line, re.I):
+                    sev = "medium"
+                elif re.search(r"X-Frame|X-Content|Strict-Transport|Content-Security", line, re.I):
+                    sev = "low"
+                findings.append({
+                    "severity": sev,
+                    "title": f"Nikto: {line[:80]}",
+                    "description": line, "evidence": line,
+                    "component": "", "tool": tool_name, "command": command,
+                    "remediation": REMEDIATION_MAP["default"],
+                })
+
+    elif tool_name == "whatweb":
         for m in re.finditer(r"\+\s+(/\S+.*?)(?:\n|$)", output):
             line = m.group(1).strip()
             if len(line) > 10:
                 findings.append({
-                    "severity": "medium", "title": f"Web Finding: {line[:80]}",
+                    "severity": "info", "title": f"Web Finding: {line[:80]}",
                     "description": line, "evidence": line,
                     "component": "", "tool": tool_name, "command": command,
                     "remediation": REMEDIATION_MAP["default"],

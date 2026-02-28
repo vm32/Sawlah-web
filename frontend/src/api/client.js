@@ -37,4 +37,11 @@ export const reportsApi = {
   download: (projectId) => `/api/reports/${projectId}/download`,
 };
 
+export const niktoApi = {
+  run: (params) => api.post("/nikto/run", params),
+  reports: () => api.get("/nikto/reports"),
+  getReport: (filename) => `/api/nikto/reports/${filename}`,
+  downloadReport: (filename) => `/api/nikto/reports/${filename}/download`,
+};
+
 export default api;
