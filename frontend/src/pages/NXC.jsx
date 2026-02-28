@@ -29,6 +29,14 @@ export default function NXC({ setOutput, setTitle }) {
   const [localAuth, setLocalAuth] = useState(false);
   const [module, setModule] = useState("");
   const [extraFlags, setExtraFlags] = useState("");
+  const [laps, setLaps] = useState(false);
+  const [kerberoast, setKerberoast] = useState(false);
+  const [ntdsMethod, setNtdsMethod] = useState("");
+  const [spiderPlus, setSpiderPlus] = useState(false);
+  const [putFile, setPutFile] = useState("");
+  const [getFile, setGetFile] = useState("");
+  const [execMethod, setExecMethod] = useState("");
+  const [execCmd, setExecCmd] = useState("");
   const [taskId, setTaskId] = useState(null);
   const [status, setStatus] = useState(null);
   const [command, setCommand] = useState("");
@@ -64,6 +72,8 @@ export default function NXC({ setOutput, setTitle }) {
       shares, users, groups, sessions, disks, loggedon,
       rid_brute: ridBrute, pass_pol: passPol, sam, lsa, ntds,
       local_auth: localAuth, module, extra_flags: extraFlags,
+      laps, kerberoast, ntds_method: ntdsMethod, spider_plus: spiderPlus,
+      put_file: putFile, get_file: getFile, exec_method: execMethod, exec_cmd: execCmd,
     };
     try {
       const res = await toolsApi.run("nxc", params);
@@ -91,6 +101,11 @@ export default function NXC({ setOutput, setTitle }) {
             <FormField label="NT Hash"><TextInput value={hash} onChange={setHash} placeholder="aad3b435..." /></FormField>
           </div>
           <FormField label="Module (-M)"><TextInput value={module} onChange={setModule} placeholder="e.g. spider_plus, petitpotam" /></FormField>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Exec Method" hint="smbexec, wmiexec, atexec"><TextInput value={execMethod} onChange={setExecMethod} placeholder="smbexec" /></FormField>
+            <FormField label="Exec Command"><TextInput value={execCmd} onChange={setExecCmd} placeholder="whoami" /></FormField>
+          </div>
+          <FormField label="NTDS Method" hint="vss or drsuapi"><TextInput value={ntdsMethod} onChange={setNtdsMethod} placeholder="drsuapi" /></FormField>
           <FormField label="Extra Flags"><TextInput value={extraFlags} onChange={setExtraFlags} placeholder="Additional flags" /></FormField>
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-sawlah-muted">Enumeration Options</p>
@@ -110,6 +125,12 @@ export default function NXC({ setOutput, setTitle }) {
               <CheckboxInput checked={sam} onChange={setSam} label="SAM" />
               <CheckboxInput checked={lsa} onChange={setLsa} label="LSA" />
               <CheckboxInput checked={ntds} onChange={setNtds} label="NTDS" />
+            </div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-sawlah-muted mt-3">Advanced</p>
+            <div className="grid grid-cols-3 gap-2">
+              <CheckboxInput checked={laps} onChange={setLaps} label="LAPS" />
+              <CheckboxInput checked={kerberoast} onChange={setKerberoast} label="Kerberoast" />
+              <CheckboxInput checked={spiderPlus} onChange={setSpiderPlus} label="Spider Plus" />
             </div>
           </div>
         </div>

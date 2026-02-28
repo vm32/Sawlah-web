@@ -68,6 +68,45 @@ def build_sqlmap_command(tool_name: str, params: dict) -> list[str]:
     if proxy:
         cmd.extend(["--proxy", proxy])
 
+    technique = params.get("technique", "").strip()
+    if technique:
+        cmd.extend(["--technique", technique])
+
+    dbms = params.get("dbms", "").strip()
+    if dbms:
+        cmd.extend(["--dbms", dbms])
+
+    test_filter = params.get("test_filter", "").strip()
+    if test_filter:
+        cmd.extend(["--test-filter", test_filter])
+
+    prefix = params.get("prefix", "").strip()
+    if prefix:
+        cmd.extend(["--prefix", prefix])
+
+    suffix = params.get("suffix", "").strip()
+    if suffix:
+        cmd.extend(["--suffix", suffix])
+
+    tamper_list = params.get("tamper_list", "").strip()
+    if tamper_list:
+        cmd.extend(["--tamper", tamper_list])
+
+    if params.get("os_shell"):
+        cmd.append("--os-shell")
+
+    file_read = params.get("file_read", "").strip()
+    if file_read:
+        cmd.extend(["--file-read", file_read])
+
+    file_write = params.get("file_write", "").strip()
+    if file_write:
+        cmd.extend(["--file-write", file_write])
+
+    file_dest = params.get("file_dest", "").strip()
+    if file_dest:
+        cmd.extend(["--file-dest", file_dest])
+
     cmd.append("--batch")
 
     extra = params.get("extra_flags", "").strip()

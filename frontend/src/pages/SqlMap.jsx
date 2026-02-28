@@ -11,6 +11,11 @@ const TAMPER_SCRIPTS = [
   "space2comment", "between", "randomcase", "charencode", "equaltolike",
   "base64encode", "apostrophemask", "percentage", "halfversionedmorekeywords",
 ];
+const TAMPER_PRESETS = [
+  "space2comment", "between", "randomcase", "charunicodeencode",
+  "equaltolike", "greatest", "apostrophemask", "percentage",
+  "space2plus", "unionalltounion", "chardoubleencode", "base64encode",
+];
 
 export default function SqlMap({ setOutput, setTitle }) {
   const [target, setTarget] = useState("");
@@ -38,6 +43,16 @@ export default function SqlMap({ setOutput, setTitle }) {
   const [status, setStatus] = useState(null);
   const [command, setCommand] = useState("");
   const [history, setHistory] = useState([]);
+  const [technique, setTechnique] = useState("");
+  const [osShell, setOsShell] = useState(false);
+  const [fileRead, setFileRead] = useState("");
+  const [fileWrite, setFileWrite] = useState("");
+  const [fileDest, setFileDest] = useState("");
+  const [tamperList, setTamperList] = useState("");
+  const [prefix, setPrefix] = useState("");
+  const [suffix, setSuffix] = useState("");
+  const [dbms, setDbms] = useState("");
+  const [testFilter, setTestFilter] = useState("");
 
   const ws = useWebSocket();
 
@@ -71,6 +86,9 @@ export default function SqlMap({ setOutput, setTitle }) {
       database, table, random_agent: randomAgent,
       threads: parseInt(threads) || 5, extra_flags: extraFlags,
       cookie, user_agent: userAgent, proxy,
+      technique, os_shell: osShell, file_read: fileRead,
+      file_write: fileWrite, file_dest: fileDest,
+      tamper_list: tamperList, prefix, suffix, dbms, test_filter: testFilter,
     };
     try {
       const res = await toolsApi.run("sqlmap", params);
@@ -123,6 +141,36 @@ export default function SqlMap({ setOutput, setTitle }) {
             <FormField label="User-Agent"><TextInput value={userAgent} onChange={setUserAgent} placeholder="Custom UA string" /></FormField>
           </div>
           <FormField label="Proxy" hint="e.g. http://127.0.0.1:8080"><TextInput value={proxy} onChange={setProxy} placeholder="http://127.0.0.1:8080" /></FormField>
+          <FormField label="Technique" hint="B=Boolean E=Error U=Union S=Stacked T=Time Q=Inline">
+            <TextInput value={technique} onChange={setTechnique} placeholder="BEUSTQ" />
+          </FormField>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="DBMS" hint="Force database type"><TextInput value={dbms} onChange={setDbms} placeholder="MySQL, PostgreSQL, MSSQL" /></FormField>
+            <FormField label="Test Filter"><TextInput value={testFilter} onChange={setTestFilter} placeholder="UNION" /></FormField>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Prefix"><TextInput value={prefix} onChange={setPrefix} placeholder="'" /></FormField>
+            <FormField label="Suffix"><TextInput value={suffix} onChange={setSuffix} placeholder="-- -" /></FormField>
+          </div>
+          <FormField label="Tamper Scripts" hint="Comma separated">
+            <TextInput value={tamperList} onChange={setTamperList} placeholder="space2comment,between" />
+          </FormField>
+          <div>
+            <p className="text-[10px] uppercase tracking-wider font-bold text-sawlah-dim mb-2">Tamper Presets (click to add)</p>
+            <div className="flex flex-wrap gap-1">
+              {TAMPER_PRESETS.map((t) => (
+                <button key={t} onClick={() => setTamperList((prev) => prev ? `${prev},${t}` : t)}
+                  className="px-2 py-0.5 text-[10px] bg-sawlah-surface border border-sawlah-border rounded hover:border-sawlah-red hover:text-sawlah-red transition-colors text-sawlah-dim"
+                >{t}</button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Read File" hint="--file-read"><TextInput value={fileRead} onChange={setFileRead} placeholder="/etc/passwd" /></FormField>
+            <FormField label="Write File" hint="--file-write"><TextInput value={fileWrite} onChange={setFileWrite} placeholder="/tmp/shell.php" /></FormField>
+          </div>
+          {fileWrite && <FormField label="File Destination" hint="--file-dest"><TextInput value={fileDest} onChange={setFileDest} placeholder="/var/www/html/shell.php" /></FormField>}
+          <CheckboxInput checked={osShell} onChange={setOsShell} label="--os-shell (interactive OS shell)" />
           <FormField label="Extra Flags"><TextInput value={extraFlags} onChange={setExtraFlags} placeholder="--os-shell" /></FormField>
           <div className="grid grid-cols-2 gap-3">
             <CheckboxInput checked={dbs} onChange={setDbs} label="List databases (--dbs)" />

@@ -34,6 +34,18 @@ export default function PasswordAttack({ setOutput, setTitle }) {
   const [hashMode, setHashMode] = useState("");
   const [attackMode, setAttackMode] = useState("0");
   const [extraFlags, setExtraFlags] = useState("");
+  const [tryNsr, setTryNsr] = useState(false);
+  const [waitTime, setWaitTime] = useState("");
+  const [exitFirst, setExitFirst] = useState(false);
+  const [hydrProxy, setHydrProxy] = useState("");
+  const [customPort, setCustomPort] = useState("");
+  const [johnFork, setJohnFork] = useState("");
+  const [johnSession, setJohnSession] = useState("");
+  const [johnRestore, setJohnRestore] = useState(false);
+  const [johnIncremental, setJohnIncremental] = useState(false);
+  const [hcUsername, setHcUsername] = useState(false);
+  const [hcOptimized, setHcOptimized] = useState(false);
+  const [hcStatusTimer, setHcStatusTimer] = useState("");
   const [taskId, setTaskId] = useState(null);
   const [status, setStatus] = useState(null);
   const [command, setCommand] = useState("");
@@ -68,6 +80,11 @@ export default function PasswordAttack({ setOutput, setTitle }) {
       passlist, threads: parseInt(threads) || 16, verbose, force,
       hashfile, wordlist, format, show: showCracked,
       mode: hashMode, attack_mode: attackMode, extra_flags: extraFlags,
+      try_nsr: tryNsr, wait_time: waitTime, exit_first: exitFirst,
+      proxy: hydrProxy, custom_port: customPort,
+      fork: johnFork, session: johnSession, restore: johnRestore,
+      incremental: johnIncremental,
+      hc_username: hcUsername, optimized: hcOptimized, status_timer: hcStatusTimer,
     };
     try {
       const res = await toolsApi.run(tool, params);
@@ -123,6 +140,40 @@ export default function PasswordAttack({ setOutput, setTitle }) {
                   <SelectInput value={attackMode} onChange={setAttackMode}
                     options={[{value:"0",label:"0 - Dictionary"},{value:"1",label:"1 - Combination"},{value:"3",label:"3 - Brute-force"},{value:"6",label:"6 - Hybrid"},{value:"7",label:"7 - Hybrid"}]} />
                 </FormField>
+              </div>
+            </>
+          )}
+          {tool === "hydra" && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Custom Port"><TextInput value={customPort} onChange={setCustomPort} placeholder="22" /></FormField>
+                <FormField label="Wait Time (s)" hint="Delay between attempts"><TextInput value={waitTime} onChange={setWaitTime} placeholder="0" /></FormField>
+              </div>
+              <FormField label="Proxy" hint="e.g. http://127.0.0.1:8080"><TextInput value={hydrProxy} onChange={setHydrProxy} placeholder="socks5://127.0.0.1:1080" /></FormField>
+              <div className="grid grid-cols-2 gap-2">
+                <CheckboxInput checked={tryNsr} onChange={setTryNsr} label="-e nsr (null/same/reverse)" />
+                <CheckboxInput checked={exitFirst} onChange={setExitFirst} label="-f (exit on first found)" />
+              </div>
+            </>
+          )}
+          {tool === "john" && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Fork (parallel)" hint="Number of processes"><TextInput value={johnFork} onChange={setJohnFork} placeholder="4" /></FormField>
+                <FormField label="Session Name"><TextInput value={johnSession} onChange={setJohnSession} placeholder="my_session" /></FormField>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <CheckboxInput checked={johnRestore} onChange={setJohnRestore} label="--restore session" />
+                <CheckboxInput checked={johnIncremental} onChange={setJohnIncremental} label="--incremental mode" />
+              </div>
+            </>
+          )}
+          {tool === "hashcat" && (
+            <>
+              <FormField label="Status Timer (s)" hint="Show status every N seconds"><TextInput value={hcStatusTimer} onChange={setHcStatusTimer} placeholder="60" /></FormField>
+              <div className="grid grid-cols-2 gap-2">
+                <CheckboxInput checked={hcUsername} onChange={setHcUsername} label="--username (hash:user format)" />
+                <CheckboxInput checked={hcOptimized} onChange={setHcOptimized} label="-O (optimized kernels)" />
               </div>
             </>
           )}

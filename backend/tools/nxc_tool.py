@@ -50,9 +50,35 @@ def build_nxc_command(tool_name: str, params: dict) -> list[str]:
     module = params.get("module", "").strip()
     if module:
         cmd.extend(["-M", module])
+    elif params.get("spider_plus"):
+        cmd.extend(["-M", "spider_plus"])
 
     if params.get("local_auth"):
         cmd.append("--local-auth")
+    if params.get("laps"):
+        cmd.append("--laps")
+    if params.get("kerberoast"):
+        cmd.append("--kerberoasting")
+
+    ntds_method = params.get("ntds_method", "").strip()
+    if ntds_method and params.get("ntds"):
+        cmd.extend(["--ntds", ntds_method])
+
+    exec_method = params.get("exec_method", "").strip()
+    if exec_method:
+        cmd.extend(["--exec-method", exec_method])
+
+    exec_cmd = params.get("exec_cmd", "").strip()
+    if exec_cmd:
+        cmd.extend(["-x", exec_cmd])
+
+    put_file = params.get("put_file", "").strip()
+    if put_file:
+        cmd.extend(["--put-file", put_file])
+
+    get_file = params.get("get_file", "").strip()
+    if get_file:
+        cmd.extend(["--get-file", get_file])
 
     extra = params.get("extra_flags", "").strip()
     if extra:

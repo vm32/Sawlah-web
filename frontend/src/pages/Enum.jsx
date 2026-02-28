@@ -10,6 +10,10 @@ const TOOLS = [
   { value: "smbclient", label: "SMBClient - SMB share browser" },
   { value: "whois", label: "Whois - Domain registration info" },
   { value: "dig", label: "Dig - DNS lookup" },
+  { value: "rpcclient", label: "RPCClient - RPC enumeration" },
+  { value: "ldapsearch", label: "LDAPSearch - LDAP queries" },
+  { value: "snmpwalk", label: "SNMPWalk - SNMP enumeration" },
+  { value: "nbtscan", label: "NBTScan - NetBIOS scanning" },
 ];
 
 const RECORD_TYPES = ["A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA", "SRV", "PTR", "ANY"].map((r) => ({ value: r, label: r }));
@@ -30,6 +34,20 @@ export default function Enum({ setOutput, setTitle }) {
   const [shortOutput, setShortOutput] = useState(false);
   const [trace, setTrace] = useState(false);
   const [extraFlags, setExtraFlags] = useState("");
+  const [ridRange, setRidRange] = useState("");
+  const [workgroup, setWorkgroup] = useState("");
+  const [smbCommand, setSmbCommand] = useState("");
+  const [smbPort, setSmbPort] = useState("");
+  const [rpcCommand, setRpcCommand] = useState("");
+  const [baseDn, setBaseDn] = useState("");
+  const [bindDn, setBindDn] = useState("");
+  const [bindPassword, setBindPassword] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
+  const [ldapAttrs, setLdapAttrs] = useState("");
+  const [snmpVersion, setSnmpVersion] = useState("2c");
+  const [community, setCommunity] = useState("public");
+  const [snmpOid, setSnmpOid] = useState("");
+  const [nbVerbose, setNbVerbose] = useState(false);
   const [taskId, setTaskId] = useState(null);
   const [status, setStatus] = useState(null);
   const [command, setCommand] = useState("");
@@ -65,6 +83,10 @@ export default function Enum({ setOutput, setTitle }) {
       password_policy: passPol, groups: groupsOpt, os_info: osInfo,
       username, password, share, record_type: recordType,
       short: shortOutput, trace, extra_flags: extraFlags,
+      rid_range: ridRange, workgroup, smb_command: smbCommand, port: smbPort,
+      rpc_command: rpcCommand, base_dn: baseDn, bind_dn: bindDn,
+      bind_password: bindPassword, search_filter: searchFilter, attributes: ldapAttrs,
+      version: snmpVersion, community, oid: snmpOid, verbose: nbVerbose,
     };
     try {
       const res = await toolsApi.run(tool, params);
@@ -121,6 +143,48 @@ export default function Enum({ setOutput, setTitle }) {
                 <CheckboxInput checked={trace} onChange={setTrace} label="+trace" />
               </div>
             </div>
+          )}
+          {tool === "enum4linux" && (
+            <div className="grid grid-cols-2 gap-4">
+              <FormField label="RID Range" hint="e.g. 500-550"><TextInput value={ridRange} onChange={setRidRange} placeholder="500-550" /></FormField>
+              <FormField label="Workgroup"><TextInput value={workgroup} onChange={setWorkgroup} placeholder="WORKGROUP" /></FormField>
+            </div>
+          )}
+          {tool === "smbclient" && (
+            <>
+              <FormField label="Port"><TextInput value={smbPort} onChange={setSmbPort} placeholder="445" /></FormField>
+              <FormField label="SMB Command" hint="e.g. ls, recurse ON; mget *"><TextInput value={smbCommand} onChange={setSmbCommand} placeholder="ls" /></FormField>
+            </>
+          )}
+          {tool === "rpcclient" && (
+            <FormField label="RPC Command" hint="e.g. enumdomusers, lookupnames admin">
+              <TextInput value={rpcCommand} onChange={setRpcCommand} placeholder="enumdomusers" />
+            </FormField>
+          )}
+          {tool === "ldapsearch" && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Base DN"><TextInput value={baseDn} onChange={setBaseDn} placeholder="DC=domain,DC=local" /></FormField>
+                <FormField label="Bind DN"><TextInput value={bindDn} onChange={setBindDn} placeholder="CN=user,DC=domain,DC=local" /></FormField>
+              </div>
+              <FormField label="Bind Password"><TextInput value={bindPassword} onChange={setBindPassword} placeholder="password" /></FormField>
+              <FormField label="Search Filter"><TextInput value={searchFilter} onChange={setSearchFilter} placeholder="(objectClass=user)" /></FormField>
+              <FormField label="Attributes" hint="Comma separated"><TextInput value={ldapAttrs} onChange={setLdapAttrs} placeholder="cn,sAMAccountName,memberOf" /></FormField>
+            </>
+          )}
+          {tool === "snmpwalk" && (
+            <>
+              <div className="grid grid-cols-3 gap-4">
+                <FormField label="Version">
+                  <SelectInput value={snmpVersion} onChange={setSnmpVersion} options={[{value:"1",label:"v1"},{value:"2c",label:"v2c"},{value:"3",label:"v3"}]} />
+                </FormField>
+                <FormField label="Community"><TextInput value={community} onChange={setCommunity} placeholder="public" /></FormField>
+                <FormField label="OID"><TextInput value={snmpOid} onChange={setSnmpOid} placeholder="1.3.6.1.2.1.1" /></FormField>
+              </div>
+            </>
+          )}
+          {tool === "nbtscan" && (
+            <CheckboxInput checked={nbVerbose} onChange={setNbVerbose} label="Verbose output" />
           )}
           <FormField label="Extra Flags"><TextInput value={extraFlags} onChange={setExtraFlags} placeholder="Additional flags" /></FormField>
         </div>

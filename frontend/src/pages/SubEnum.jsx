@@ -20,6 +20,15 @@ export default function SubEnum({ setOutput, setTitle }) {
   const [threads, setThreads] = useState("10");
   const [enumSubs, setEnumSubs] = useState(true);
   const [extraFlags, setExtraFlags] = useState("");
+  const [timeout, setTimeout_] = useState("");
+  const [maxDns, setMaxDns] = useState("");
+  const [resolvers, setResolvers] = useState("");
+  const [showIps, setShowIps] = useState(false);
+  const [showCname, setShowCname] = useState(false);
+  const [wildcardDetect, setWildcardDetect] = useState(false);
+  const [asnLookup, setAsnLookup] = useState(false);
+  const [activeMode, setActiveMode] = useState(false);
+  const [noreverse, setNoreverse] = useState(false);
   const [taskId, setTaskId] = useState(null);
   const [status, setStatus] = useState(null);
   const [command, setCommand] = useState("");
@@ -53,6 +62,9 @@ export default function SubEnum({ setOutput, setTitle }) {
     const params = {
       target: target.trim(), passive, brute, wordlist,
       threads: parseInt(threads) || 10, enum_subdomains: enumSubs, extra_flags: extraFlags,
+      timeout: timeout, max_dns: maxDns, resolvers, show_ips: showIps,
+      show_cname: showCname, wildcard: wildcardDetect, asn_lookup: asnLookup,
+      active: activeMode, noreverse,
     };
     try {
       const res = await toolsApi.run(tool, params);
@@ -85,6 +97,21 @@ export default function SubEnum({ setOutput, setTitle }) {
             </>
           )}
           {tool === "dnsenum" && <CheckboxInput checked={enumSubs} onChange={setEnumSubs} label="Enumerate subdomains (--enum)" />}
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Timeout" hint="In minutes (amass)"><TextInput value={timeout} onChange={setTimeout_} placeholder="30" /></FormField>
+            <FormField label="Max DNS Queries" hint="Rate limit"><TextInput value={maxDns} onChange={setMaxDns} placeholder="5000" /></FormField>
+          </div>
+          <FormField label="Custom Resolvers" hint="File path with DNS resolvers">
+            <TextInput value={resolvers} onChange={setResolvers} placeholder="/path/to/resolvers.txt" />
+          </FormField>
+          <div className="grid grid-cols-3 gap-2">
+            <CheckboxInput checked={showIps} onChange={setShowIps} label="Show IPs" />
+            <CheckboxInput checked={showCname} onChange={setShowCname} label="Show CNAME" />
+            <CheckboxInput checked={wildcardDetect} onChange={setWildcardDetect} label="Wildcard" />
+            <CheckboxInput checked={asnLookup} onChange={setAsnLookup} label="ASN Lookup" />
+            <CheckboxInput checked={activeMode} onChange={setActiveMode} label="Active Mode" />
+            <CheckboxInput checked={noreverse} onChange={setNoreverse} label="No Reverse" />
+          </div>
           <FormField label="Extra Flags"><TextInput value={extraFlags} onChange={setExtraFlags} placeholder="Additional flags" /></FormField>
         </div>
 

@@ -60,6 +60,12 @@ export default function Nmap({ setOutput, setTitle }) {
   const [maxRetries, setMaxRetries] = useState("");
   const [excludeHosts, setExcludeHosts] = useState("");
   const [extraFlags, setExtraFlags] = useState("");
+  const [decoy, setDecoy] = useState("");
+  const [sourcePort, setSourcePort] = useState("");
+  const [dataLength, setDataLength] = useState("");
+  const [macSpoof, setMacSpoof] = useState("");
+  const [spoofIp, setSpoofIp] = useState("");
+  const [ifaceOpt, setIfaceOpt] = useState("");
   const [taskId, setTaskId] = useState(null);
   const [status, setStatus] = useState(null);
   const [command, setCommand] = useState("");
@@ -100,6 +106,12 @@ export default function Nmap({ setOutput, setTitle }) {
       minRate ? `--min-rate ${minRate}` : "",
       maxRetries ? `--max-retries ${maxRetries}` : "",
       excludeHosts ? `--exclude ${excludeHosts}` : "",
+      decoy ? `-D ${decoy}` : "",
+      sourcePort ? `--source-port ${sourcePort}` : "",
+      dataLength ? `--data-length ${dataLength}` : "",
+      macSpoof ? `--spoof-mac ${macSpoof}` : "",
+      spoofIp ? `-S ${spoofIp}` : "",
+      ifaceOpt ? `-e ${ifaceOpt}` : "",
       extraFlags,
     ].filter(Boolean).join(" ");
 
@@ -172,6 +184,19 @@ export default function Nmap({ setOutput, setTitle }) {
           <FormField label="Exclude Hosts" hint="Comma-separated IPs to skip">
             <TextInput value={excludeHosts} onChange={setExcludeHosts} placeholder="192.168.1.254" />
           </FormField>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Decoy Scan (-D)" hint="Comma-separated IPs or RND"><TextInput value={decoy} onChange={setDecoy} placeholder="RND:5 or 10.0.0.1,10.0.0.2" /></FormField>
+            <FormField label="Source Port" hint="Spoof source port"><TextInput value={sourcePort} onChange={setSourcePort} placeholder="53" /></FormField>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Data Length" hint="Append random data to packets"><TextInput value={dataLength} onChange={setDataLength} placeholder="40" /></FormField>
+            <FormField label="MAC Spoof" hint="Spoof MAC address"><TextInput value={macSpoof} onChange={setMacSpoof} placeholder="00:11:22:33:44:55 or Apple" /></FormField>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Spoof IP (-S)" hint="Source IP spoof"><TextInput value={spoofIp} onChange={setSpoofIp} placeholder="10.0.0.1" /></FormField>
+            <FormField label="Interface (-e)" hint="Network interface"><TextInput value={ifaceOpt} onChange={setIfaceOpt} placeholder="eth0" /></FormField>
+          </div>
 
           <FormField label="Extra Flags" hint="Any additional nmap flags">
             <TextInput value={extraFlags} onChange={setExtraFlags} placeholder="--script-args=unsafe=1" />

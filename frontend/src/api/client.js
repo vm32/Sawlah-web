@@ -32,7 +32,8 @@ export const automationApi = {
 };
 
 export const reportsApi = {
-  generate: (projectId) => api.get(`/reports/${projectId}`),
+  generate: (projectId, options = {}) =>
+    api.post(`/reports/${projectId}`, options),
   download: (projectId) => `/api/reports/${projectId}/download`,
 };
 
