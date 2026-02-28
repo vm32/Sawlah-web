@@ -2,39 +2,31 @@
 
 A full-stack web application that provides a GUI for Kali Linux penetration testing tools with real-time terminal output, automated pentesting workflows, and report generation.
 
-## One-Command Install & Run
+## Install & Run
 
 ```bash
-git clone https://github.com/vm32/Sawlah-web.git && cd Sawlah-web && bash start.sh
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/vm32/Sawlah-web/main/install.sh)"
 ```
 
-That single command clones the repo, installs all dependencies (Python + Node), and starts both servers. Open **http://localhost:3000** when you see the ready message.
+That's it. One command — clones the repo, installs everything, and launches the panel. Open **http://localhost:3000** when you see the ready message.
 
-> **Requirements:** Kali Linux with `python3`, `pip3`, `node`, and `npm` (all pre-installed on Kali).
+> **Works on Kali Linux out of the box.** The installer auto-installs any missing packages (`git`, `python3`, `node`, `npm`) via apt if needed.
 
-### Already cloned?
+### Custom install location
 
 ```bash
-cd Sawlah-web && bash start.sh
+SAWLAH_DIR=/opt/Sawlah-web sh -c "$(curl -fsSL https://raw.githubusercontent.com/vm32/Sawlah-web/main/install.sh)"
 ```
+
+### Already installed? Run again
+
+```bash
+cd ~/Sawlah-web && bash start.sh
+```
+
+Or just re-run the curl command — it will pull the latest changes and start.
 
 Press `Ctrl+C` to stop both servers.
-
-### Manual Start (if preferred)
-
-**Terminal 1 — Backend:**
-```bash
-pip3 install --break-system-packages -r backend/requirements.txt
-cd backend && python3 main.py
-```
-
-**Terminal 2 — Frontend:**
-```bash
-cd frontend && npm install && npm run dev
-```
-
-- API: `http://127.0.0.1:8000`
-- Panel: `http://localhost:3000`
 
 ## Tools Supported
 
