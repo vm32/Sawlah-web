@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, memo } from "react";
 import { ReactFlow, Background, Controls, MiniMap, Handle, Position, useNodesState, useEdgesState } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Map, Target, Wifi, Server, AlertTriangle, Globe, FolderOpen, RefreshCw } from "lucide-react";
+import { Map, Target, Wifi, Server, AlertTriangle, Globe, FolderOpen, RefreshCw, Cpu, Bug } from "lucide-react";
 import { PageHeader, SelectInput } from "../components/ToolForm";
 
 const TargetNode = memo(({ data }) => (
@@ -72,7 +72,31 @@ const DirectoryNode = memo(({ data }) => (
     <div className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30">
       <FolderOpen className="w-3 h-3 text-purple-400 inline mr-1" />
       <span className="text-[10px] font-mono text-purple-300">{data.url}</span>
-      <span className={`text-[9px] ml-1 ${data.status < 400 ? "text-emerald-400" : "text-yellow-400"}`}>({data.status})</span>
+      {data.status > 0 && <span className={`text-[9px] ml-1 ${data.status < 400 ? "text-emerald-400" : "text-yellow-400"}`}>({data.status})</span>}
+    </div>
+  </div>
+));
+
+const TechnologyNode = memo(({ data }) => (
+  <div>
+    <Handle type="target" position={Position.Bottom} className="!bg-cyan-500 !w-2 !h-2" />
+    <Handle type="source" position={Position.Left} className="!bg-cyan-500 !w-2 !h-2" />
+    <div className="px-3 py-2 rounded-xl bg-gradient-to-br from-cyan-500/15 to-cyan-900/15 border border-cyan-500/30 min-w-[100px] text-center">
+      <Cpu className="w-4 h-4 text-cyan-400 mx-auto mb-0.5" />
+      <p className="text-[11px] font-bold text-cyan-300">{data.name}</p>
+      {data.version && <p className="text-[9px] text-cyan-500">v{data.version}</p>}
+      <p className="text-[8px] text-cyan-700 uppercase tracking-wider mt-0.5">{data.category}</p>
+    </div>
+  </div>
+));
+
+const ExploitNode = memo(({ data }) => (
+  <div>
+    <Handle type="target" position={Position.Top} className="!bg-orange-500 !w-2 !h-2" />
+    <div className="px-3 py-2 rounded-xl bg-gradient-to-br from-orange-500/15 to-red-900/15 border border-orange-500/40 max-w-[240px]">
+      <Bug className="w-3.5 h-3.5 text-orange-400 mb-0.5" />
+      <p className="text-[10px] font-bold text-orange-300 break-all leading-snug">{data.title}</p>
+      <p className="text-[8px] font-mono text-orange-600 mt-0.5">{data.path}</p>
     </div>
   </div>
 ));
@@ -84,6 +108,8 @@ const nodeTypes = {
   subdomain: SubdomainNode,
   vuln: VulnNode,
   directory: DirectoryNode,
+  technology: TechnologyNode,
+  exploit: ExploitNode,
 };
 
 const defaultEdgeOptions = {
@@ -153,12 +179,14 @@ export default function ReconMap({ setOutput, setTitle }) {
       </div>
 
       {summary && (
-        <div className="grid grid-cols-5 gap-3 mb-4">
+        <div className="grid grid-cols-4 md:grid-cols-7 gap-3 mb-4">
           {[
-            { label: "Open Ports", value: summary.ports?.length || 0, color: "text-emerald-400" },
+            { label: "Ports", value: summary.ports?.length || 0, color: "text-emerald-400" },
             { label: "Services", value: summary.services?.length || 0, color: "text-cyan-400" },
             { label: "Subdomains", value: summary.subdomains?.length || 0, color: "text-blue-400" },
             { label: "Directories", value: summary.directories?.length || 0, color: "text-purple-400" },
+            { label: "Technologies", value: summary.technologies?.length || 0, color: "text-cyan-400" },
+            { label: "Exploits", value: summary.exploits?.length || 0, color: "text-orange-400" },
             { label: "Vulns", value: summary.vulns?.length || 0, color: "text-red-400" },
           ].map((s) => (
             <div key={s.label} className="bg-sawlah-card border border-sawlah-border rounded-xl px-3 py-2 text-center">
@@ -197,7 +225,10 @@ export default function ReconMap({ setOutput, setTitle }) {
                 if (n.type === "port") return "#4ade80";
                 if (n.type === "service") return "#22d3ee";
                 if (n.type === "subdomain") return "#60a5fa";
+                if (n.type === "technology") return "#06b6d4";
+                if (n.type === "exploit") return "#f97316";
                 if (n.type === "vuln") return "#ef4444";
+                if (n.type === "directory") return "#a855f7";
                 return "#71717a";
               }}
               style={{ background: "#0a0a0a", border: "1px solid #2a2a2a", borderRadius: 8 }}

@@ -37,6 +37,13 @@ export const reportsApi = {
   download: (projectId) => `/api/reports/${projectId}/download`,
 };
 
+export const webreconApi = {
+  run: (params) => api.post("/webrecon/run", params),
+  status: (sessionId) => api.get(`/webrecon/status/${sessionId}`),
+  sessions: () => api.get("/webrecon/sessions"),
+  kill: (sessionId) => api.delete(`/webrecon/kill/${sessionId}`),
+};
+
 export const niktoApi = {
   run: (params) => api.post("/nikto/run", params),
   reports: () => api.get("/nikto/reports"),

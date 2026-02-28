@@ -1,4 +1,5 @@
 import re
+import math
 from fastapi import APIRouter
 from tool_runner import tasks
 
@@ -52,6 +53,77 @@ def _parse_vulns(output: str) -> list[str]:
     return vulns
 
 
+def _merge_webrecon_sessions(targets: dict):
+    """Merge web recon session results into the targets map."""
+    try:
+        from routes.webrecon import recon_sessions
+    except ImportError:
+        return
+
+    for sid, session in recon_sessions.items():
+        if session.get("status") not in ("completed", "running"):
+            continue
+        domain = session.get("domain", "")
+        if not domain:
+            continue
+
+        if domain not in targets:
+            targets[domain] = {
+                "target": domain,
+                "ports": [],
+                "services": [],
+                "subdomains": [],
+                "directories": [],
+                "technologies": [],
+                "exploits": [],
+                "vulns": [],
+                "server_info": {},
+                "scans": [],
+            }
+
+        t = targets[domain]
+        t.setdefault("technologies", [])
+        t.setdefault("exploits", [])
+        t.setdefault("server_info", {})
+
+        results = session.get("results", {})
+
+        for sub in results.get("subdomains", []):
+            fqdn = sub.get("subdomain", "")
+            if fqdn and fqdn not in t["subdomains"]:
+                t["subdomains"].append(fqdn)
+
+        for d in results.get("directories", []):
+            path = d.get("path", "")
+            status = d.get("status", 0)
+            if path:
+                existing_paths = [x.get("url") or x.get("path", "") for x in t["directories"]]
+                if path not in existing_paths:
+                    t["directories"].append({"url": path, "status": status, "size": d.get("size", 0)})
+
+        for tech in results.get("technologies", []):
+            name = tech.get("name", "")
+            existing = [x.get("name", "") for x in t["technologies"]]
+            if name and name not in existing:
+                t["technologies"].append(tech)
+
+        for exp in results.get("exploits", []):
+            title = exp.get("title", "")
+            existing = [x.get("title", "") for x in t["exploits"]]
+            if title and title not in existing:
+                t["exploits"].append(exp)
+
+        si = results.get("server_info", {})
+        if si:
+            t["server_info"].update(si)
+
+        t["scans"].append({
+            "task_id": sid, "tool": "webrecon",
+            "status": session.get("status"),
+            "started_at": session.get("started_at"),
+        })
+
+
 @router.get("/targets")
 async def list_targets():
     """Extract unique targets from all scan history."""
@@ -75,7 +147,10 @@ async def list_targets():
                     "services": [],
                     "subdomains": [],
                     "directories": [],
+                    "technologies": [],
+                    "exploits": [],
                     "vulns": [],
+                    "server_info": {},
                     "scans": [],
                 }
 
@@ -93,7 +168,7 @@ async def list_targets():
                         targets[target]["ports"].append(svc)
                         targets[target]["services"].append(svc)
 
-            if tool in ("amass", "gobuster_dns", "dnsenum") and output:
+            if tool in ("amass", "gobuster_dns", "dnsenum", "ffuf") and output:
                 for sub in _parse_subdomains(output):
                     if sub not in targets[target]["subdomains"]:
                         targets[target]["subdomains"].append(sub)
@@ -106,6 +181,8 @@ async def list_targets():
                 for v in _parse_vulns(output):
                     if v not in targets[target]["vulns"]:
                         targets[target]["vulns"].append(v)
+
+    _merge_webrecon_sessions(targets)
 
     return list(targets.values())
 
@@ -126,21 +203,22 @@ async def get_target_map(target: str):
     nodes = []
     edges = []
     node_id = 0
+    cx, cy = 500, 400
 
     center_id = f"target-{node_id}"
     nodes.append({
         "id": center_id, "type": "target",
         "data": {"label": data["target"], "scans": len(data["scans"])},
-        "position": {"x": 400, "y": 300},
+        "position": {"x": cx, "y": cy},
     })
 
+    # Ports — ring at radius 200, top-right
     for i, port in enumerate(data["ports"]):
         node_id += 1
         pid = f"port-{node_id}"
-        angle = (i / max(len(data["ports"]), 1)) * 6.28
-        import math
-        x = 400 + math.cos(angle) * 200
-        y = 300 + math.sin(angle) * 200
+        angle = (i / max(len(data["ports"]), 1)) * 3.14 - 1.2
+        x = cx + math.cos(angle) * 220
+        y = cy + math.sin(angle) * 220
         nodes.append({
             "id": pid, "type": "port",
             "data": {
@@ -158,17 +236,20 @@ async def get_target_map(target: str):
             nodes.append({
                 "id": sid, "type": "service",
                 "data": {"label": f"{port['service']} {port['version']}"},
-                "position": {"x": x + math.cos(angle) * 120, "y": y + math.sin(angle) * 120},
+                "position": {"x": x + math.cos(angle) * 130, "y": y + math.sin(angle) * 130},
             })
             edges.append({"id": f"e-{pid}-{sid}", "source": pid, "target": sid})
 
-    for i, sub in enumerate(data["subdomains"][:20]):
+    # Subdomains — left side fan
+    subs = data.get("subdomains", [])[:30]
+    for i, sub in enumerate(subs):
         node_id += 1
         sid = f"sub-{node_id}"
-        angle = (i / max(len(data["subdomains"]), 1)) * 6.28 + 0.5
-        import math
-        x = 400 + math.cos(angle) * 350
-        y = 300 + math.sin(angle) * 350
+        spread = min(len(subs), 30)
+        angle = math.pi + (i / max(spread, 1)) * 1.8 - 0.9
+        r = 300 + (i % 3) * 60
+        x = cx + math.cos(angle) * r
+        y = cy + math.sin(angle) * r
         nodes.append({
             "id": sid, "type": "subdomain",
             "data": {"label": sub},
@@ -176,26 +257,86 @@ async def get_target_map(target: str):
         })
         edges.append({"id": f"e-{center_id}-{sid}", "source": center_id, "target": sid})
 
-    for i, vuln in enumerate(data["vulns"][:15]):
+    # Directories — bottom-right cluster
+    directories = data.get("directories", [])[:25]
+    for i, d in enumerate(directories):
+        node_id += 1
+        did = f"dir-{node_id}"
+        col = i % 5
+        row = i // 5
+        x = cx + 200 + col * 150
+        y = cy + 280 + row * 60
+        url = d.get("url") or d.get("path", "")
+        status = d.get("status", 0)
+        nodes.append({
+            "id": did, "type": "directory",
+            "data": {"url": url, "status": status},
+            "position": {"x": x, "y": y},
+        })
+        port80 = next((n for n in nodes if n.get("type") == "port" and n["data"].get("port") in (80, 443, 8080, 8443)), None)
+        parent = port80["id"] if port80 else center_id
+        edges.append({"id": f"e-{parent}-{did}", "source": parent, "target": did})
+
+    # Technologies — top cluster
+    techs = data.get("technologies", [])[:12]
+    for i, tech in enumerate(techs):
+        node_id += 1
+        tid = f"tech-{node_id}"
+        col = i % 4
+        row = i // 4
+        x = cx - 150 + col * 160
+        y = cy - 250 - row * 70
+        nodes.append({
+            "id": tid, "type": "technology",
+            "data": {
+                "name": tech.get("name", ""),
+                "version": tech.get("version", ""),
+                "category": tech.get("category", "Technology"),
+            },
+            "position": {"x": x, "y": y},
+        })
+        edges.append({"id": f"e-{center_id}-{tid}", "source": center_id, "target": tid})
+
+    # Exploits — bottom-left danger zone, linked to their technology
+    exploits = data.get("exploits", [])[:20]
+    tech_nodes_by_name = {}
+    for n in nodes:
+        if n["type"] == "technology":
+            tech_nodes_by_name[n["data"]["name"].lower()] = n["id"]
+
+    for i, exp in enumerate(exploits):
+        node_id += 1
+        eid = f"exploit-{node_id}"
+        col = i % 4
+        row = i // 4
+        x = cx - 400 + col * 180
+        y = cy + 250 + row * 65
+        nodes.append({
+            "id": eid, "type": "exploit",
+            "data": {
+                "title": exp.get("title", "")[:70],
+                "path": exp.get("path", ""),
+                "search_term": exp.get("search_term", ""),
+            },
+            "position": {"x": x, "y": y},
+        })
+        parent = center_id
+        search = exp.get("search_term", "").lower()
+        for tname, tnid in tech_nodes_by_name.items():
+            if tname in search or search in tname:
+                parent = tnid
+                break
+        edges.append({"id": f"e-{parent}-{eid}", "source": parent, "target": eid})
+
+    # Vulns
+    for i, vuln in enumerate(data.get("vulns", [])[:15]):
         node_id += 1
         vid = f"vuln-{node_id}"
         nodes.append({
             "id": vid, "type": "vuln",
             "data": {"label": vuln[:80]},
-            "position": {"x": 100 + (i % 5) * 160, "y": 550 + (i // 5) * 80},
+            "position": {"x": cx - 300 + (i % 5) * 140, "y": cy + 500 + (i // 5) * 70},
         })
         edges.append({"id": f"e-{center_id}-{vid}", "source": center_id, "target": vid})
-
-    for i, d in enumerate(data["directories"][:15]):
-        node_id += 1
-        did = f"dir-{node_id}"
-        nodes.append({
-            "id": did, "type": "directory",
-            "data": {"url": d["url"], "status": d["status"]},
-            "position": {"x": 700 + (i % 4) * 140, "y": 550 + (i // 4) * 70},
-        })
-        port80 = next((n for n in nodes if n.get("type") == "port" and n["data"].get("port") in (80, 443, 8080, 8443)), None)
-        parent = port80["id"] if port80 else center_id
-        edges.append({"id": f"e-{parent}-{did}", "source": parent, "target": did})
 
     return {"nodes": nodes, "edges": edges, "target": data["target"], "summary": data}
