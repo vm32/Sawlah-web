@@ -51,3 +51,4 @@ Press `Ctrl+C` to stop both servers.
 - HTML report generation with severity classification
 - Interactive recon map visualization
 - Dark UI (red/black/white)
+
