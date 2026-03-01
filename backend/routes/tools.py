@@ -27,7 +27,6 @@ router = APIRouter()
 TOOL_BUILDERS = {
     "nmap": build_nmap_command,
     "sqlmap": build_sqlmap_command,
-    "amass": build_subdomain_command,
     "gobuster_dns": build_subdomain_command,
     "dnsenum": build_subdomain_command,
     "nikto": build_webscan_command,

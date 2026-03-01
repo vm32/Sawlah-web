@@ -14,6 +14,7 @@ from routes.recon_map import router as recon_map_router
 from routes.nikto import router as nikto_router
 from routes.webrecon import router as webrecon_router
 from routes.wafw00f import router as wafw00f_router
+from routes.subenum import router as subenum_router
 from auth import router as auth_router
 
 
@@ -42,6 +43,7 @@ app.include_router(recon_map_router, prefix="/api/map", tags=["recon-map"])
 app.include_router(nikto_router, prefix="/api/nikto", tags=["nikto"])
 app.include_router(webrecon_router, prefix="/api/webrecon", tags=["webrecon"])
 app.include_router(wafw00f_router, prefix="/api/wafw00f", tags=["wafw00f"])
+app.include_router(subenum_router, prefix="/api/subenum", tags=["subenum"])
 
 
 @app.get("/api/health")

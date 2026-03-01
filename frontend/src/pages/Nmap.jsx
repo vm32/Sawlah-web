@@ -40,7 +40,7 @@ const SCRIPT_PRESETS = [
   "http-enum", "smb-enum-shares", "ssl-enum-ciphers", "dns-brute",
 ];
 
-export default function Nmap({ setOutput, setTitle }) {
+export default function Nmap({ setOutput, setTitle, activeProject }) {
   const [target, setTarget] = useState("");
   const [scanType, setScanType] = useState("quick");
   const [ports, setPorts] = useState("");
@@ -122,7 +122,7 @@ export default function Nmap({ setOutput, setTitle }) {
       verbose, extra_flags: extra,
     };
     try {
-      const res = await toolsApi.run("nmap", params);
+      const res = await toolsApi.run("nmap", params, activeProject);
       setTaskId(res.data.task_id); setCommand(res.data.command);
       setStatus("running"); ws.connect(res.data.task_id);
     } catch (err) { setOutput(`Error: ${err.message}\n`); }

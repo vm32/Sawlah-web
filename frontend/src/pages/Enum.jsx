@@ -18,7 +18,7 @@ const TOOLS = [
 
 const RECORD_TYPES = ["A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA", "SRV", "PTR", "ANY"].map((r) => ({ value: r, label: r }));
 
-export default function Enum({ setOutput, setTitle }) {
+export default function Enum({ setOutput, setTitle, activeProject }) {
   const [tool, setTool] = useState("enum4linux");
   const [target, setTarget] = useState("");
   const [all, setAll] = useState(true);
@@ -89,7 +89,7 @@ export default function Enum({ setOutput, setTitle }) {
       version: snmpVersion, community, oid: snmpOid, verbose: nbVerbose,
     };
     try {
-      const res = await toolsApi.run(tool, params);
+      const res = await toolsApi.run(tool, params, activeProject);
       setTaskId(res.data.task_id); setCommand(res.data.command);
       setStatus("running"); ws.connect(res.data.task_id);
     } catch (err) { setOutput(`Error: ${err.message}\n`); }

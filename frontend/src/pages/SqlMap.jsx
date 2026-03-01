@@ -17,7 +17,7 @@ const TAMPER_PRESETS = [
   "space2plus", "unionalltounion", "chardoubleencode", "base64encode",
 ];
 
-export default function SqlMap({ setOutput, setTitle }) {
+export default function SqlMap({ setOutput, setTitle, activeProject }) {
   const [target, setTarget] = useState("");
   const [method, setMethod] = useState("GET");
   const [data, setData] = useState("");
@@ -91,7 +91,7 @@ export default function SqlMap({ setOutput, setTitle }) {
       tamper_list: tamperList, prefix, suffix, dbms, test_filter: testFilter,
     };
     try {
-      const res = await toolsApi.run("sqlmap", params);
+      const res = await toolsApi.run("sqlmap", params, activeProject);
       setTaskId(res.data.task_id); setCommand(res.data.command);
       setStatus("running"); ws.connect(res.data.task_id);
     } catch (err) { setOutput(`Error: ${err.message}\n`); }

@@ -84,7 +84,7 @@ const TABS = [
   { id: "john", label: "John the Ripper", icon: FileKey },
 ];
 
-export default function HashDiscovery({ setOutput, setTitle }) {
+export default function HashDiscovery({ setOutput, setTitle, activeProject }) {
   const [activeTab, setActiveTab] = useState("identify");
   const [hashInput, setHashInput] = useState("");
   const [hashFile, setHashFile] = useState("");
@@ -176,7 +176,7 @@ export default function HashDiscovery({ setOutput, setTitle }) {
     }
 
     try {
-      const res = await toolsApi.run(toolName, params);
+      const res = await toolsApi.run(toolName, params, activeProject);
       if (res.data.error) {
         setOutput(`Error: ${res.data.error}\n`);
         setStatus("error");

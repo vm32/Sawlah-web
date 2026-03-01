@@ -1,7 +1,10 @@
 import os
 import re
+import socket
+import io
+from urllib.parse import urlparse
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from sqlalchemy import select
 from jinja2 import Environment, FileSystemLoader
 from datetime import datetime, timezone
@@ -50,6 +53,44 @@ REMEDIATION_MAP = {
     "exploit_available": "Patch or upgrade the affected software immediately. Monitor for exploitation attempts.",
     "default": "Investigate and remediate according to organizational security policy.",
 }
+
+
+def _resolve_ip(host: str) -> str:
+    """Resolve a hostname/URL to its IP address."""
+    try:
+        parsed = urlparse(host)
+        hostname = parsed.hostname or host
+        hostname = hostname.strip().rstrip(".")
+        if not hostname:
+            return "N/A"
+        info = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        if info:
+            return info[0][4][0]
+    except Exception:
+        pass
+    return "N/A"
+
+
+def _collect_targets_with_ips(target: str, scans: list) -> list[dict]:
+    """Build a list of unique targets with their resolved IPs."""
+    seen = set()
+    targets = []
+
+    primary = target.strip()
+    if primary and primary not in seen:
+        seen.add(primary)
+        targets.append({"url": primary, "ip": _resolve_ip(primary), "description": "Primary target"})
+
+    for s in scans:
+        cmd = s.get("command", "") if isinstance(s, dict) else (s.command or "")
+        for token in cmd.split():
+            if "://" in token or (re.match(r"^\d+\.\d+\.\d+\.\d+", token)):
+                cleaned = token.strip("'\"")
+                if cleaned and cleaned not in seen and not cleaned.startswith("-"):
+                    seen.add(cleaned)
+                    targets.append({"url": cleaned, "ip": _resolve_ip(cleaned), "description": "Scanned target"})
+
+    return targets
 
 
 def extract_findings_from_output(tool_name: str, command: str, output: str) -> list[dict]:
@@ -205,7 +246,7 @@ def extract_findings_from_output(tool_name: str, command: str, output: str) -> l
                 findings.append({
                     "severity": "high",
                     "title": f"Hash Cracked: {m.group(1)[:30]}",
-                    "description": f"Cracked hash value found", "evidence": m.group(0),
+                    "description": "Cracked hash value found", "evidence": m.group(0),
                     "component": "", "tool": tool_name, "command": command,
                     "remediation": REMEDIATION_MAP["credential_found"],
                 })
@@ -229,7 +270,7 @@ def extract_findings_from_output(tool_name: str, command: str, output: str) -> l
 
     elif tool_name == "wafw00f":
         for m in re.finditer(r"is behind\s+(.+?)(?:\s+WAF)?\.?\s*$", output, re.I | re.M):
-            waf_name = m.group(1).strip()
+            waf_name = re.sub(r"\x1b\[[0-9;]*m", "", m.group(1).strip())
             findings.append({
                 "severity": "medium",
                 "title": f"WAF Detected: {waf_name}",
@@ -264,8 +305,8 @@ class ReportRequest(BaseModel):
     include_raw: bool = True
 
 
-@router.post("/{project_id}")
-async def generate_report(project_id: int, req: ReportRequest = ReportRequest()):
+async def _gather_report_data(project_id: int, req: ReportRequest = ReportRequest()):
+    """Shared helper: load project, scans, findings, resolve IPs, filter info."""
     async with async_session() as session:
         project = await session.get(Project, project_id)
         if not project:
@@ -290,6 +331,7 @@ async def generate_report(project_id: int, req: ReportRequest = ReportRequest())
         })
 
     from tool_runner import tasks as mem_tasks
+    scan_data = []
     for s in scans:
         output = s.output or ""
         for tid, t in mem_tasks.items():
@@ -300,6 +342,18 @@ async def generate_report(project_id: int, req: ReportRequest = ReportRequest())
         auto = extract_findings_from_output(s.tool_name, s.command, output)
         all_findings.extend(auto)
 
+        duration = ""
+        if s.started_at and s.finished_at:
+            delta = s.finished_at - s.started_at
+            duration = f"{int(delta.total_seconds())}s"
+        scan_data.append({
+            "tool_name": s.tool_name, "command": s.command,
+            "status": s.status, "output": output,
+            "started_at": s.started_at.isoformat() if s.started_at else "",
+            "finished_at": s.finished_at.isoformat() if s.finished_at else "",
+            "duration": duration,
+        })
+
     seen = set()
     unique_findings = []
     for f in all_findings:
@@ -308,31 +362,29 @@ async def generate_report(project_id: int, req: ReportRequest = ReportRequest())
             seen.add(key)
             unique_findings.append(f)
 
-    unique_findings.sort(key=lambda x: {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}.get(x["severity"], 5))
+    actionable_findings = [f for f in unique_findings if f["severity"] in ("critical", "high", "medium", "low")]
+    actionable_findings.sort(key=lambda x: {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(x["severity"], 4))
 
     severity_counts = {}
-    for f in unique_findings:
+    for f in actionable_findings:
         severity_counts[f["severity"]] = severity_counts.get(f["severity"], 0) + 1
 
-    scan_data = []
-    for s in scans:
-        duration = ""
-        if s.started_at and s.finished_at:
-            delta = s.finished_at - s.started_at
-            duration = f"{int(delta.total_seconds())}s"
-        output = s.output or ""
-        for tid, t in mem_tasks.items():
-            if t.get("command") == s.command and t.get("tool_name") == s.tool_name:
-                if len(t.get("output", "")) > len(output):
-                    output = t["output"]
-                break
-        scan_data.append({
-            "tool_name": s.tool_name, "command": s.command,
-            "status": s.status, "output": output,
-            "started_at": s.started_at.isoformat() if s.started_at else "",
-            "finished_at": s.finished_at.isoformat() if s.finished_at else "",
-            "duration": duration,
-        })
+    targets_with_ips = _collect_targets_with_ips(project.target, scan_data)
+
+    return {
+        "project": project,
+        "scan_data": scan_data,
+        "findings": actionable_findings,
+        "severity_counts": severity_counts,
+        "targets_with_ips": targets_with_ips,
+        "total_scans": len(scans),
+        "total_findings": len(actionable_findings),
+    }
+
+
+async def _render_html(project_id: int, req: ReportRequest = ReportRequest()) -> str:
+    data = await _gather_report_data(project_id, req)
+    project = data["project"]
 
     template = jinja_env.get_template("template.html")
     html = template.render(
@@ -342,13 +394,14 @@ async def generate_report(project_id: int, req: ReportRequest = ReportRequest())
         tester_name=req.tester_name,
         classification=req.classification,
         generated_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
-        scans=scan_data,
-        findings=unique_findings,
-        total_scans=len(scans),
-        total_findings=len(unique_findings),
-        severity_counts=severity_counts,
+        scans=data["scan_data"],
+        findings=data["findings"],
+        total_scans=data["total_scans"],
+        total_findings=data["total_findings"],
+        severity_counts=data["severity_counts"],
         tool_purposes=TOOL_PURPOSES,
         include_raw=req.include_raw,
+        targets_with_ips=data["targets_with_ips"],
     )
 
     filename = f"report_{project.name.replace(' ', '_')}_{project_id}.html"
@@ -356,6 +409,12 @@ async def generate_report(project_id: int, req: ReportRequest = ReportRequest())
     with open(filepath, "w") as f:
         f.write(html)
 
+    return html
+
+
+@router.post("/{project_id}")
+async def generate_report(project_id: int, req: ReportRequest = ReportRequest()):
+    html = await _render_html(project_id, req)
     return HTMLResponse(content=html)
 
 
@@ -374,5 +433,261 @@ async def download_report(project_id: int):
     filename = f"report_{project.name.replace(' ', '_')}_{project_id}.html"
     filepath = os.path.join(REPORTS_DIR, filename)
     if not os.path.exists(filepath):
-        await generate_report(project_id)
+        await _render_html(project_id)
     return FileResponse(filepath, filename=filename, media_type="text/html")
+
+
+@router.get("/{project_id}/pdf")
+async def download_pdf(project_id: int):
+    """Generate the HTML report and convert to A4 PDF via xhtml2pdf."""
+    html = await _render_html(project_id)
+
+    from xhtml2pdf import pisa
+
+    pdf_buffer = io.BytesIO()
+    pisa_status = pisa.CreatePDF(io.StringIO(html), dest=pdf_buffer)
+    if pisa_status.err:
+        raise HTTPException(500, "PDF generation failed")
+    pdf_buffer.seek(0)
+
+    async with async_session() as session:
+        project = await session.get(Project, project_id)
+    name = project.name.replace(" ", "_") if project else "report"
+    filename = f"report_{name}_{project_id}.pdf"
+
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/{project_id}/docx")
+async def download_docx(project_id: int):
+    """Generate a Word document from report data."""
+    data = await _gather_report_data(project_id)
+    project = data["project"]
+
+    from docx import Document
+    from docx.shared import Inches, Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+
+    doc = Document()
+
+    style = doc.styles["Normal"]
+    style.font.name = "Calibri"
+    style.font.size = Pt(11)
+    style.paragraph_format.space_after = Pt(6)
+
+    # Cover page
+    for _ in range(6):
+        doc.add_paragraph("")
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run("SAWLAH")
+    run.bold = True
+    run.font.size = Pt(36)
+    run.font.color.rgb = RGBColor(0xC0, 0x39, 0x2B)
+
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run("Penetration Testing Framework")
+    run.font.size = Pt(11)
+    run.font.color.rgb = RGBColor(0x88, 0x88, 0x88)
+
+    doc.add_paragraph("")
+
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run("Penetration Test Report")
+    run.bold = True
+    run.font.size = Pt(22)
+
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = p.add_run(project.target)
+    run.font.size = Pt(14)
+    run.font.color.rgb = RGBColor(0xC0, 0x39, 0x2B)
+
+    doc.add_paragraph("")
+    doc.add_paragraph("")
+
+    meta_items = [
+        ("Project", project.name),
+        ("Date", datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")),
+        ("Tester", "Security Team"),
+        ("Classification", "CONFIDENTIAL"),
+        ("Total Findings", str(data["total_findings"])),
+        ("Total Scans", str(data["total_scans"])),
+    ]
+    meta_table = doc.add_table(rows=len(meta_items), cols=2)
+    meta_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    for i, (label, value) in enumerate(meta_items):
+        meta_table.cell(i, 0).text = label
+        meta_table.cell(i, 1).text = value
+        for cell in meta_table.rows[i].cells:
+            for paragraph in cell.paragraphs:
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                for run in paragraph.runs:
+                    run.font.size = Pt(11)
+
+    doc.add_page_break()
+
+    # 1. Executive Summary
+    doc.add_heading("1. Executive Summary", level=1)
+    doc.add_paragraph(
+        f"A penetration test was conducted against {project.target} as part of the "
+        f"{project.name} engagement. A total of {data['total_scans']} scans were executed, "
+        f"identifying {data['total_findings']} actionable findings."
+    )
+
+    sev_table = doc.add_table(rows=2, cols=4)
+    sev_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    sev_labels = ["Critical", "High", "Medium", "Low"]
+    sev_keys = ["critical", "high", "medium", "low"]
+    sev_colors = [
+        RGBColor(0xC0, 0x39, 0x2B),
+        RGBColor(0xE6, 0x7E, 0x22),
+        RGBColor(0xD4, 0xA0, 0x17),
+        RGBColor(0x34, 0x98, 0xDB),
+    ]
+    for i, (label, key, color) in enumerate(zip(sev_labels, sev_keys, sev_colors)):
+        count_cell = sev_table.cell(0, i)
+        count_cell.text = str(data["severity_counts"].get(key, 0))
+        for p in count_cell.paragraphs:
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for run in p.runs:
+                run.bold = True
+                run.font.size = Pt(20)
+                run.font.color.rgb = color
+
+        label_cell = sev_table.cell(1, i)
+        label_cell.text = label
+        for p in label_cell.paragraphs:
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for run in p.runs:
+                run.font.size = Pt(9)
+                run.font.color.rgb = RGBColor(0x88, 0x88, 0x88)
+
+    doc.add_paragraph("")
+
+    # 2. Scope
+    doc.add_heading("2. Scope and Targets", level=1)
+    targets = data["targets_with_ips"]
+    if targets:
+        t_table = doc.add_table(rows=1 + len(targets), cols=3)
+        t_table.style = "Table Grid"
+        t_table.alignment = WD_TABLE_ALIGNMENT.LEFT
+        headers = ["URL / Host", "IP Address", "Description"]
+        for i, h in enumerate(headers):
+            t_table.cell(0, i).text = h
+            for p in t_table.cell(0, i).paragraphs:
+                p.runs[0].bold = True
+                p.runs[0].font.size = Pt(10)
+        for i, t in enumerate(targets, 1):
+            t_table.cell(i, 0).text = t["url"]
+            t_table.cell(i, 1).text = t["ip"]
+            t_table.cell(i, 2).text = t["description"]
+
+    doc.add_paragraph("")
+
+    # 3. Findings Summary
+    doc.add_heading("3. Findings Summary", level=1)
+    findings = data["findings"]
+    if findings:
+        f_table = doc.add_table(rows=1 + len(findings), cols=5)
+        f_table.style = "Table Grid"
+        f_table.alignment = WD_TABLE_ALIGNMENT.LEFT
+        f_headers = ["#", "Title", "Severity", "Component", "Tool"]
+        for i, h in enumerate(f_headers):
+            f_table.cell(0, i).text = h
+            for p in f_table.cell(0, i).paragraphs:
+                p.runs[0].bold = True
+                p.runs[0].font.size = Pt(9)
+
+        for i, f in enumerate(findings, 1):
+            f_table.cell(i, 0).text = f"F-{i:03d}"
+            f_table.cell(i, 1).text = f["title"][:60]
+            f_table.cell(i, 2).text = f["severity"].upper()
+            f_table.cell(i, 3).text = (f["component"] or project.target)[:40]
+            f_table.cell(i, 4).text = f["tool"] or "N/A"
+            for cell in f_table.rows[i].cells:
+                for p in cell.paragraphs:
+                    for run in p.runs:
+                        run.font.size = Pt(9)
+    else:
+        doc.add_paragraph("No actionable findings were identified during this assessment.")
+
+    doc.add_page_break()
+
+    # 4. Detailed Findings
+    doc.add_heading("4. Detailed Findings", level=1)
+    for i, f in enumerate(findings, 1):
+        doc.add_heading(f"F-{i:03d} [{f['severity'].upper()}] {f['title'][:70]}", level=2)
+        doc.add_paragraph(f"Severity: {f['severity'].upper()}")
+        doc.add_paragraph(f"Component: {f['component'] or project.target}")
+        doc.add_paragraph(f"Tool: {f['tool'] or 'N/A'}")
+        doc.add_paragraph("")
+        doc.add_paragraph(f["description"])
+
+        if f.get("evidence"):
+            doc.add_paragraph("")
+            p = doc.add_paragraph()
+            run = p.add_run("Proof of Concept:")
+            run.bold = True
+            if f.get("command"):
+                p_cmd = doc.add_paragraph()
+                run_cmd = p_cmd.add_run(f"$ {f['command']}")
+                run_cmd.font.name = "Consolas"
+                run_cmd.font.size = Pt(9)
+                run_cmd.font.color.rgb = RGBColor(0xC0, 0x39, 0x2B)
+            p_ev = doc.add_paragraph()
+            run_ev = p_ev.add_run(f["evidence"][:2000])
+            run_ev.font.name = "Consolas"
+            run_ev.font.size = Pt(8)
+
+        if f.get("remediation"):
+            doc.add_paragraph("")
+            p = doc.add_paragraph()
+            run = p.add_run("Remediation: ")
+            run.bold = True
+            p.add_run(f["remediation"])
+
+        doc.add_paragraph("")
+
+    # 5. Tool Execution Log
+    doc.add_page_break()
+    doc.add_heading("5. Tool Execution Log", level=1)
+    scan_data = data["scan_data"]
+    if scan_data:
+        log_table = doc.add_table(rows=1 + len(scan_data), cols=4)
+        log_table.style = "Table Grid"
+        log_headers = ["Tool", "Command", "Status", "Duration"]
+        for i, h in enumerate(log_headers):
+            log_table.cell(0, i).text = h
+            for p in log_table.cell(0, i).paragraphs:
+                p.runs[0].bold = True
+                p.runs[0].font.size = Pt(9)
+        for i, s in enumerate(scan_data, 1):
+            log_table.cell(i, 0).text = s["tool_name"]
+            log_table.cell(i, 1).text = s["command"][:60]
+            log_table.cell(i, 2).text = s["status"]
+            log_table.cell(i, 3).text = s["duration"] or "N/A"
+            for cell in log_table.rows[i].cells:
+                for p in cell.paragraphs:
+                    for run in p.runs:
+                        run.font.size = Pt(8)
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+
+    name = project.name.replace(" ", "_")
+    filename = f"report_{name}_{project_id}.docx"
+
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

@@ -9,7 +9,7 @@ const PROTOCOLS = [
   "smb", "ldap", "rdp", "winrm", "ssh", "ftp", "mssql", "wmi", "vnc", "nfs",
 ].map((p) => ({ value: p, label: p.toUpperCase() }));
 
-export default function NXC({ setOutput, setTitle }) {
+export default function NXC({ setOutput, setTitle, activeProject }) {
   const [target, setTarget] = useState("");
   const [protocol, setProtocol] = useState("smb");
   const [username, setUsername] = useState("");
@@ -76,7 +76,7 @@ export default function NXC({ setOutput, setTitle }) {
       put_file: putFile, get_file: getFile, exec_method: execMethod, exec_cmd: execCmd,
     };
     try {
-      const res = await toolsApi.run("nxc", params);
+      const res = await toolsApi.run("nxc", params, activeProject);
       setTaskId(res.data.task_id); setCommand(res.data.command);
       setStatus("running"); ws.connect(res.data.task_id);
     } catch (err) { setOutput(`Error: ${err.message}\n`); }

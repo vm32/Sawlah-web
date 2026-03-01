@@ -8,7 +8,7 @@ import useWebSocket from "../hooks/useWebSocket";
 import { PageHeader, FormField, TextInput, CheckboxInput } from "../components/ToolForm";
 import OutputPanel from "../components/OutputPanel";
 
-export default function WafDetect({ setOutput, setTitle }) {
+export default function WafDetect({ setOutput, setTitle, activeProject }) {
   const [target, setTarget] = useState("");
   const [allWaf, setAllWaf] = useState(false);
   const [verbose, setVerbose] = useState(false);
@@ -68,6 +68,7 @@ export default function WafDetect({ setOutput, setTitle }) {
         double_check: doubleCheck,
         extra_flags: extraFlags,
         save_report: saveReport,
+        project_id: activeProject || null,
       });
       if (res.data.error) {
         setOutput(`Error: ${res.data.error}\n`);

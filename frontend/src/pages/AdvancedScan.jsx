@@ -31,7 +31,7 @@ const WP_ENUM = [
   { value: "vp,vt,u", label: "vp,vt,u - Common combo" },
 ];
 
-export default function AdvancedScan({ setOutput, setTitle }) {
+export default function AdvancedScan({ setOutput, setTitle, activeProject }) {
   const [tool, setTool] = useState("nuclei");
   const [target, setTarget] = useState("");
   const [severity, setSeverity] = useState("");
@@ -92,7 +92,7 @@ export default function AdvancedScan({ setOutput, setTitle }) {
       api_token: apiToken, extra_flags: extraFlags,
     };
     try {
-      const res = await toolsApi.run(tool, params);
+      const res = await toolsApi.run(tool, params, activeProject);
       if (res.data.error) { setOutput(`Error: ${res.data.error}\n`); setStatus("error"); return; }
       setTaskId(res.data.task_id); setCommand(res.data.command);
       ws.connect(res.data.task_id);

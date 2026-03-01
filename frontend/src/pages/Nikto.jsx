@@ -98,7 +98,7 @@ const SCAN_PROFILES = [
   },
 ];
 
-export default function Nikto({ setOutput, setTitle }) {
+export default function Nikto({ setOutput, setTitle, activeProject }) {
   const [target, setTarget] = useState("");
   const [port, setPort] = useState("");
   const [ssl, setSsl] = useState(false);
@@ -189,6 +189,7 @@ export default function Nikto({ setOutput, setTitle }) {
         no404,
         save_report: saveReport,
         extra_flags: extraFlags,
+        project_id: activeProject || null,
       });
       if (res.data.error) {
         setOutput(`Error: ${res.data.error}\n`);

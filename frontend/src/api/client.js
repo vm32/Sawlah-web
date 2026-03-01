@@ -35,6 +35,8 @@ export const reportsApi = {
   generate: (projectId, options = {}) =>
     api.post(`/reports/${projectId}`, options),
   download: (projectId) => `/api/reports/${projectId}/download`,
+  pdf: (projectId) => `/api/reports/${projectId}/pdf`,
+  docx: (projectId) => `/api/reports/${projectId}/docx`,
 };
 
 export const webreconApi = {
@@ -49,6 +51,10 @@ export const niktoApi = {
   reports: () => api.get("/nikto/reports"),
   getReport: (filename) => `/api/nikto/reports/${filename}`,
   downloadReport: (filename) => `/api/nikto/reports/${filename}/download`,
+};
+
+export const subenumApi = {
+  runAll: (params) => api.post("/subenum/run-all", params),
 };
 
 export const wafw00fApi = {

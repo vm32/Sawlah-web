@@ -26,6 +26,20 @@ export default function App() {
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem("sawlah_user") || "null"); } catch { return null; }
   });
+  const [activeProject, setActiveProject] = useState(() => {
+    const saved = localStorage.getItem("sawlah_active_project");
+    return saved ? parseInt(saved, 10) : null;
+  });
+
+  const handleSetActiveProject = (id) => {
+    const val = id ? parseInt(id, 10) : null;
+    setActiveProject(val);
+    if (val) {
+      localStorage.setItem("sawlah_active_project", String(val));
+    } else {
+      localStorage.removeItem("sawlah_active_project");
+    }
+  };
 
   const handleLogin = (data) => {
     setAuthed(true);
@@ -43,6 +57,7 @@ export default function App() {
     appendOutput: (text) => setTermOutput((prev) => prev + text),
     setOutput: setTermOutput,
     setTitle: setTermTitle,
+    activeProject,
   };
 
   if (!authed) {
@@ -50,7 +65,7 @@ export default function App() {
   }
 
   return (
-    <Layout user={user} onLogout={handleLogout}>
+    <Layout user={user} onLogout={handleLogout} activeProject={activeProject} setActiveProject={handleSetActiveProject}>
       <Routes>
         <Route path="/" element={<Dashboard {...terminalProps} />} />
         <Route path="/nmap" element={<Nmap {...terminalProps} />} />

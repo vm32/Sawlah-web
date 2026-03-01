@@ -47,7 +47,7 @@ const TOOL_PAGES = {
   hashid: "/hash", hashcat_crack: "/hash", john_crack: "/hash",
 };
 
-export default function Dashboard({ setOutput, setTitle }) {
+export default function Dashboard({ setOutput, setTitle, activeProject }) {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState({});
@@ -88,7 +88,7 @@ export default function Dashboard({ setOutput, setTitle }) {
     if (!quickTarget.trim()) return;
     try {
       const params = { ...action.params, target: quickTarget.trim() };
-      const res = await toolsApi.run(action.tool, params);
+      const res = await toolsApi.run(action.tool, params, activeProject);
       navigate(TOOL_PAGES[action.tool] || "/");
     } catch {}
   };

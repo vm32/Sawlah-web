@@ -16,7 +16,7 @@ const SERVICES = [
   "mysql", "mssql", "postgres", "vnc", "pop3", "imap", "smtp",
 ].map((s) => ({ value: s, label: s.toUpperCase() }));
 
-export default function PasswordAttack({ setOutput, setTitle }) {
+export default function PasswordAttack({ setOutput, setTitle, activeProject }) {
   const [tool, setTool] = useState("hydra");
   const [target, setTarget] = useState("");
   const [service, setService] = useState("ssh");
@@ -87,7 +87,7 @@ export default function PasswordAttack({ setOutput, setTitle }) {
       hc_username: hcUsername, optimized: hcOptimized, status_timer: hcStatusTimer,
     };
     try {
-      const res = await toolsApi.run(tool, params);
+      const res = await toolsApi.run(tool, params, activeProject);
       setTaskId(res.data.task_id); setCommand(res.data.command);
       setStatus("running"); ws.connect(res.data.task_id);
     } catch (err) { setOutput(`Error: ${err.message}\n`); }

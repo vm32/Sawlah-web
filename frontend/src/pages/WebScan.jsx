@@ -89,7 +89,7 @@ function ResultSection({ title, icon: Icon, color, children, count }) {
   );
 }
 
-export default function WebScan({ setOutput, setTitle }) {
+export default function WebScan({ setOutput, setTitle, activeProject }) {
   const [target, setTarget] = useState("");
   const [mode, setMode] = useState("standard");
   const [threads, setThreads] = useState("30");
@@ -140,6 +140,7 @@ export default function WebScan({ setOutput, setTitle }) {
         mode,
         threads: parseInt(threads) || 30,
         extensions,
+        project_id: activeProject || null,
       });
       if (res.data.error) {
         setOutput(`Error: ${res.data.error}\n`);

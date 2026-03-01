@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { FileText, Download, Eye, RefreshCw, Printer } from "lucide-react";
+import { FileText, Download, Eye, RefreshCw, Printer, FileDown, FileType } from "lucide-react";
 import { projectsApi, reportsApi, toolsApi } from "../api/client";
 import { PageHeader, FormField, TextInput, SelectInput, CheckboxInput } from "../components/ToolForm";
 import StatusBadge from "../components/StatusBadge";
@@ -123,7 +123,15 @@ export default function Reports({ setOutput, setTitle }) {
                 </button>
                 <button onClick={handleDownload}
                   className="flex items-center gap-2 px-4 py-2 bg-sawlah-surface border border-sawlah-border text-white rounded-lg text-sm font-medium hover:bg-white/5 transition-colors">
-                  <Download className="w-4 h-4" /> Download
+                  <Download className="w-4 h-4" /> HTML
+                </button>
+                <button onClick={() => window.open(reportsApi.pdf(selectedProject), "_blank")}
+                  className="flex items-center gap-2 px-4 py-2 bg-sawlah-surface border border-sawlah-border text-white rounded-lg text-sm font-medium hover:bg-white/5 transition-colors">
+                  <FileDown className="w-4 h-4" /> PDF
+                </button>
+                <button onClick={() => window.open(reportsApi.docx(selectedProject), "_blank")}
+                  className="flex items-center gap-2 px-4 py-2 bg-sawlah-surface border border-sawlah-border text-white rounded-lg text-sm font-medium hover:bg-white/5 transition-colors">
+                  <FileType className="w-4 h-4" /> DOCX
                 </button>
                 {reportHtml && (
                   <button onClick={handlePrint}

@@ -5,112 +5,184 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Penetration Test Report - {{ project_name }}</title>
     <style>
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background: #fff; color: #1a1a2e; line-height: 1.6; font-size: 13px; }
+        body {
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #fff;
+            color: #1a1a2e;
+            line-height: 1.7;
+            font-size: 12px;
+        }
         a { color: #c0392b; text-decoration: none; }
         a:hover { text-decoration: underline; }
+        p { margin-bottom: 10px; }
 
-        .cover { page-break-after: always; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 90vh; text-align: center; border-bottom: 4px solid #c0392b; padding: 60px 40px; }
-        .cover .logo { font-size: 48px; font-weight: 800; color: #c0392b; letter-spacing: 2px; margin-bottom: 8px; }
-        .cover .logo-sub { font-size: 12px; text-transform: uppercase; letter-spacing: 6px; color: #777; margin-bottom: 60px; }
-        .cover h1 { font-size: 28px; font-weight: 700; color: #1a1a2e; margin-bottom: 6px; }
-        .cover .target { font-size: 18px; color: #c0392b; font-family: monospace; margin-bottom: 40px; }
-        .cover-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: left; max-width: 500px; width: 100%; }
-        .cover-meta dt { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #999; font-weight: 600; }
-        .cover-meta dd { font-size: 14px; color: #333; margin-bottom: 8px; }
-        .classification { display: inline-block; margin-top: 30px; padding: 6px 20px; border: 2px solid #c0392b; color: #c0392b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; }
+        /* Cover */
+        .cover {
+            page-break-after: always;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            min-height: 100vh; text-align: center;
+            border-bottom: 5px solid #c0392b;
+            padding: 80px 40px 60px;
+        }
+        .cover .logo { font-size: 52px; font-weight: 800; color: #c0392b; letter-spacing: 3px; margin-bottom: 4px; }
+        .cover .logo-sub { font-size: 11px; text-transform: uppercase; letter-spacing: 8px; color: #888; margin-bottom: 70px; }
+        .cover h1 { font-size: 30px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; }
+        .cover .target { font-size: 17px; color: #c0392b; font-family: 'Consolas', 'Courier New', monospace; margin-bottom: 50px; }
+        .cover-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 30px; text-align: left; max-width: 480px; width: 100%; }
+        .cover-meta dt { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: #999; font-weight: 700; }
+        .cover-meta dd { font-size: 14px; color: #333; margin-bottom: 10px; }
+        .classification { display: inline-block; margin-top: 40px; padding: 8px 28px; border: 2px solid #c0392b; color: #c0392b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 3px; }
 
-        .page { padding: 40px 50px; max-width: 900px; margin: 0 auto; }
+        /* Page container */
+        .page { padding: 0 10px; max-width: 780px; margin: 0 auto; }
 
-        .toc { page-break-after: always; }
-        .toc h2 { font-size: 22px; color: #1a1a2e; border-bottom: 2px solid #c0392b; padding-bottom: 8px; margin-bottom: 20px; }
+        /* TOC */
+        .toc { page-break-after: always; padding-top: 30px; }
+        .toc h2 { font-size: 22px; color: #1a1a2e; border-bottom: 3px solid #c0392b; padding-bottom: 8px; margin-bottom: 24px; }
         .toc ol { list-style: none; counter-reset: toc; }
-        .toc ol li { counter-increment: toc; padding: 8px 0; border-bottom: 1px dotted #ddd; }
+        .toc ol li { counter-increment: toc; padding: 10px 0; border-bottom: 1px dotted #ccc; }
         .toc ol li::before { content: counter(toc) ". "; font-weight: 700; color: #c0392b; }
         .toc ol li a { color: #333; font-size: 14px; }
 
-        h2.section-title { font-size: 20px; color: #1a1a2e; border-bottom: 2px solid #c0392b; padding-bottom: 6px; margin: 40px 0 16px 0; page-break-after: avoid; }
-        h3.subsection { font-size: 15px; color: #333; margin: 20px 0 8px 0; }
+        /* Section headings */
+        h2.section-title {
+            font-size: 20px; color: #1a1a2e;
+            border-bottom: 3px solid #c0392b; padding-bottom: 8px;
+            margin: 50px 0 20px 0; page-break-after: avoid;
+        }
+        h3.subsection { font-size: 14px; color: #333; margin: 24px 0 10px 0; font-weight: 700; }
 
-        .scope-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
-        .scope-table th { background: #f5f5f5; text-align: left; padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; border-bottom: 2px solid #ddd; }
-        .scope-table td { padding: 8px 12px; border-bottom: 1px solid #eee; font-size: 13px; }
+        /* Tables */
+        .data-table { width: 100%; border-collapse: collapse; margin: 14px 0 20px; font-size: 11px; }
+        .data-table th {
+            background: #1a1a2e; color: #fff; padding: 9px 12px;
+            text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+            border: 1px solid #1a1a2e;
+        }
+        .data-table td { padding: 8px 12px; border: 1px solid #e0e0e0; vertical-align: top; }
+        .data-table tbody tr:nth-child(even) { background: #f9f9f9; }
+        .data-table tbody tr:hover { background: #f0f0f0; }
 
-        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
-        .stat-box { background: #fafafa; border: 1px solid #eee; border-radius: 6px; padding: 16px; text-align: center; }
-        .stat-box .num { font-size: 28px; font-weight: 800; }
-        .stat-box .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-top: 4px; }
-        .num-critical { color: #c0392b; }
-        .num-high { color: #e67e22; }
-        .num-medium { color: #f1c40f; }
-        .num-info { color: #3498db; }
-
-        .risk-bar { display: flex; height: 18px; border-radius: 4px; overflow: hidden; margin: 12px 0; }
-        .risk-bar .seg { display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; }
-        .seg-critical { background: #c0392b; }
-        .seg-high { background: #e67e22; }
-        .seg-medium { background: #f1c40f; color: #333; }
-        .seg-low { background: #3498db; }
-        .seg-info { background: #95a5a6; }
-
-        .findings-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12px; }
-        .findings-table th { background: #1a1a2e; color: #fff; padding: 8px 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .findings-table td { padding: 8px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
-        .findings-table tr:hover { background: #fafafa; }
-
-        .sev-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #fff; }
+        /* Severity badges */
+        .sev-badge {
+            display: inline-block; padding: 2px 10px; border-radius: 3px;
+            font-size: 10px; font-weight: 700; text-transform: uppercase; color: #fff;
+        }
         .sev-critical { background: #c0392b; }
         .sev-high { background: #e67e22; }
         .sev-medium { background: #f39c12; color: #333; }
         .sev-low { background: #3498db; }
         .sev-info { background: #95a5a6; }
 
-        .finding-card { border: 1px solid #ddd; border-left: 4px solid; border-radius: 4px; padding: 16px 20px; margin: 16px 0; page-break-inside: avoid; background: #fff; }
+        /* Executive summary stats */
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 20px 0; }
+        .stat-box {
+            background: #fff; border: 2px solid #e8e8e8; border-radius: 8px;
+            padding: 18px 12px; text-align: center;
+        }
+        .stat-box .num { font-size: 32px; font-weight: 800; }
+        .stat-box .lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: #888; margin-top: 4px; }
+        .stat-box.critical-box { border-color: #c0392b; border-width: 2px; }
+        .stat-box.high-box { border-color: #e67e22; }
+        .stat-box.medium-box { border-color: #f39c12; }
+        .stat-box.low-box { border-color: #3498db; }
+        .num-critical { color: #c0392b; }
+        .num-high { color: #e67e22; }
+        .num-medium { color: #d4a017; }
+        .num-low { color: #3498db; }
+
+        /* Chart container */
+        .chart-section { display: flex; align-items: center; gap: 40px; margin: 24px 0 30px; }
+        .chart-svg { flex-shrink: 0; }
+        .chart-legend { font-size: 12px; }
+        .chart-legend-item { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+        .chart-legend-color { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+        .chart-legend-label { color: #444; }
+        .chart-legend-count { font-weight: 700; color: #1a1a2e; margin-left: 4px; }
+
+        /* Risk bar */
+        .risk-bar { display: flex; height: 22px; border-radius: 4px; overflow: hidden; margin: 16px 0; border: 1px solid #ddd; }
+        .risk-bar .seg { display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; }
+        .seg-critical { background: #c0392b; }
+        .seg-high { background: #e67e22; }
+        .seg-medium { background: #f1c40f; color: #333; }
+        .seg-low { background: #3498db; }
+
+        /* Finding cards */
+        .finding-card {
+            border: 1px solid #ddd; border-left: 5px solid;
+            border-radius: 4px; padding: 18px 22px; margin: 20px 0;
+            page-break-inside: avoid; background: #fff;
+        }
         .finding-card.critical { border-left-color: #c0392b; }
         .finding-card.high { border-left-color: #e67e22; }
         .finding-card.medium { border-left-color: #f39c12; }
         .finding-card.low { border-left-color: #3498db; }
-        .finding-card.info { border-left-color: #95a5a6; }
-        .finding-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .finding-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
         .finding-id { font-size: 11px; font-weight: 700; color: #999; }
         .finding-title { font-size: 15px; font-weight: 700; color: #1a1a2e; }
-        .finding-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; font-size: 12px; }
-        .finding-meta dt { color: #888; font-size: 10px; text-transform: uppercase; }
-        .finding-meta dd { color: #333; }
-        .finding-desc { margin: 10px 0; color: #444; font-size: 13px; line-height: 1.7; }
+        .finding-meta { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 12px 0; font-size: 11px; }
+        .finding-meta dt { color: #888; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .finding-meta dd { color: #333; font-weight: 500; }
+        .finding-desc { margin: 12px 0; color: #444; font-size: 12px; line-height: 1.8; }
 
-        .poc-block { background: #f7f7f7; border: 1px solid #e0e0e0; border-radius: 4px; margin: 10px 0; overflow: hidden; }
-        .poc-label { background: #1a1a2e; color: #fff; padding: 4px 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        /* PoC block */
+        .poc-block { background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 4px; margin: 14px 0; overflow: hidden; }
+        .poc-label { background: #1a1a2e; color: #fff; padding: 5px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
         .poc-cmd { padding: 10px 14px; font-family: 'Consolas', 'Courier New', monospace; font-size: 11px; color: #c0392b; background: #fafafa; border-bottom: 1px solid #e0e0e0; word-break: break-all; }
-        .poc-output { padding: 10px 14px; font-family: 'Consolas', 'Courier New', monospace; font-size: 10px; color: #333; white-space: pre-wrap; max-height: 250px; overflow-y: auto; line-height: 1.5; }
+        .poc-output { padding: 10px 14px; font-family: 'Consolas', 'Courier New', monospace; font-size: 10px; color: #333; white-space: pre-wrap; max-height: 200px; overflow-y: auto; line-height: 1.5; }
 
-        .remediation { background: #eaf7ea; border: 1px solid #c3e6c3; border-radius: 4px; padding: 10px 14px; margin: 10px 0; font-size: 12px; color: #2d6a2d; }
+        /* Remediation */
+        .remediation {
+            background: #f0f9f0; border: 1px solid #c3e6c3; border-radius: 4px;
+            padding: 10px 14px; margin: 12px 0; font-size: 12px; color: #2d6a2d;
+        }
         .remediation strong { color: #1a5c1a; }
 
-        .cmd-log-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 11px; }
-        .cmd-log-table th { background: #f5f5f5; padding: 6px 10px; text-align: left; font-size: 10px; text-transform: uppercase; color: #666; border-bottom: 2px solid #ddd; }
-        .cmd-log-table td { padding: 6px 10px; border-bottom: 1px solid #eee; font-family: monospace; }
+        /* Tool log */
+        .cmd-log-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 10px; }
+        .cmd-log-table th {
+            background: #f5f5f5; padding: 7px 10px; text-align: left;
+            font-size: 9px; text-transform: uppercase; color: #666;
+            border-bottom: 2px solid #ddd; letter-spacing: 0.5px;
+        }
+        .cmd-log-table td { padding: 7px 10px; border-bottom: 1px solid #eee; font-family: monospace; font-size: 10px; }
         .cmd-log-table .status-ok { color: #27ae60; font-weight: 700; }
         .cmd-log-table .status-err { color: #c0392b; font-weight: 700; }
 
-        .appendix-scan { border: 1px solid #ddd; border-radius: 4px; margin: 12px 0; page-break-inside: avoid; }
-        .appendix-header { background: #f5f5f5; padding: 8px 14px; font-size: 12px; font-weight: 700; color: #333; border-bottom: 1px solid #ddd; cursor: pointer; }
-        .appendix-output { padding: 10px 14px; font-family: monospace; font-size: 10px; white-space: pre-wrap; color: #333; max-height: 400px; overflow-y: auto; background: #fafafa; line-height: 1.5; }
+        /* Appendix */
+        .appendix-scan { border: 1px solid #ddd; border-radius: 4px; margin: 14px 0; page-break-inside: avoid; }
+        .appendix-header { background: #f5f5f5; padding: 8px 14px; font-size: 11px; font-weight: 700; color: #333; border-bottom: 1px solid #ddd; }
+        .appendix-output { padding: 10px 14px; font-family: monospace; font-size: 9px; white-space: pre-wrap; color: #333; max-height: 350px; overflow-y: auto; background: #fafafa; line-height: 1.5; }
 
+        /* Methodology */
         .methodology-list { margin: 10px 0 10px 20px; }
-        .methodology-list li { margin: 4px 0; color: #444; }
+        .methodology-list li { margin: 5px 0; color: #444; font-size: 12px; }
 
-        .footer { border-top: 2px solid #c0392b; padding-top: 12px; margin-top: 50px; text-align: center; font-size: 10px; color: #999; }
-        .footer .conf { font-weight: 700; color: #c0392b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        /* Footer */
+        .footer { border-top: 3px solid #c0392b; padding-top: 14px; margin-top: 60px; text-align: center; font-size: 10px; color: #999; }
+        .footer .conf { font-weight: 700; color: #c0392b; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px; }
 
+        /* IP table */
+        .ip-cell { font-family: 'Consolas', 'Courier New', monospace; color: #555; }
+        .url-cell { font-family: 'Consolas', 'Courier New', monospace; color: #c0392b; }
+
+        /* Page break utility */
+        .page-break { page-break-before: always; }
+
+        /* Print styles */
         @media print {
-            body { font-size: 11px; }
+            body { font-size: 10px; }
             .cover { min-height: 100vh; }
-            .page { padding: 20px 30px; }
+            .page { padding: 0; max-width: 100%; }
             .finding-card, .appendix-scan { break-inside: avoid; }
             .poc-output, .appendix-output { max-height: none; overflow: visible; }
             .no-print { display: none; }
-            @page { margin: 15mm; }
         }
     </style>
 </head>
@@ -123,9 +195,11 @@
         <div class="target">{{ target }}</div>
         <dl class="cover-meta">
             <dt>Project</dt><dd>{{ project_name }}</dd>
-            <dt>Date</dt><dd>{{ generated_at }}</dd>
+            <dt>Report Date</dt><dd>{{ generated_at }}</dd>
             <dt>Tester</dt><dd>{{ tester_name or 'Security Team' }}</dd>
             <dt>Version</dt><dd>1.0</dd>
+            <dt>Total Findings</dt><dd>{{ total_findings }}</dd>
+            <dt>Total Scans</dt><dd>{{ total_scans }}</dd>
         </dl>
         <div class="classification">{{ classification or 'CONFIDENTIAL' }}</div>
     </div>
@@ -135,22 +209,34 @@
         <div class="toc">
             <h2>Table of Contents</h2>
             <ol>
-                <li><a href="#scope">Scope &amp; Methodology</a></li>
+                <li><a href="#scope">Scope and Methodology</a></li>
                 <li><a href="#executive">Executive Summary</a></li>
                 <li><a href="#findings-summary">Findings Summary</a></li>
                 <li><a href="#findings-detail">Detailed Findings</a></li>
                 <li><a href="#cmd-log">Tool Execution Log</a></li>
+                {% if include_raw %}
                 <li><a href="#appendix">Raw Output Appendix</a></li>
+                {% endif %}
             </ol>
         </div>
 
         <!-- 1. SCOPE & METHODOLOGY -->
-        <h2 class="section-title" id="scope">1. Scope &amp; Methodology</h2>
+        <h2 class="section-title" id="scope">1. Scope and Methodology</h2>
 
         <h3 class="subsection">1.1 In-Scope Targets</h3>
-        <table class="scope-table">
-            <tr><th>Target</th><th>Description</th></tr>
-            <tr><td style="font-family:monospace;color:#c0392b;">{{ target }}</td><td>Primary target</td></tr>
+        <table class="data-table">
+            <thead>
+                <tr><th>URL / Host</th><th>IP Address</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+                {% for t in targets_with_ips %}
+                <tr>
+                    <td class="url-cell">{{ t.url }}</td>
+                    <td class="ip-cell">{{ t.ip }}</td>
+                    <td>{{ t.description }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
         </table>
 
         {% if scope %}
@@ -159,59 +245,167 @@
         {% endif %}
 
         <h3 class="subsection">1.3 Methodology</h3>
-        <p style="color:#444;">The assessment followed a structured penetration testing methodology:</p>
+        <p style="color:#444;">The assessment followed a structured penetration testing methodology aligned with the OWASP Testing Guide:</p>
         <ol class="methodology-list">
-            <li><strong>Reconnaissance</strong> &mdash; Target discovery, port scanning, service enumeration</li>
-            <li><strong>Enumeration</strong> &mdash; Service-specific enumeration (SMB, LDAP, DNS, HTTP)</li>
-            <li><strong>Vulnerability Analysis</strong> &mdash; Automated and manual vulnerability identification</li>
-            <li><strong>Exploitation</strong> &mdash; Attempting to exploit identified vulnerabilities</li>
-            <li><strong>Post-Exploitation</strong> &mdash; Privilege escalation, lateral movement, data access</li>
-            <li><strong>Reporting</strong> &mdash; Documentation of findings with evidence and remediation</li>
+            <li><strong>Reconnaissance</strong> -- Target discovery, port scanning, service enumeration</li>
+            <li><strong>Enumeration</strong> -- Service-specific enumeration (SMB, LDAP, DNS, HTTP)</li>
+            <li><strong>Vulnerability Analysis</strong> -- Automated and manual vulnerability identification</li>
+            <li><strong>Exploitation</strong> -- Attempting to exploit identified vulnerabilities</li>
+            <li><strong>Post-Exploitation</strong> -- Privilege escalation, lateral movement, data access</li>
+            <li><strong>Reporting</strong> -- Documentation of findings with evidence and remediation</li>
         </ol>
 
         <h3 class="subsection">1.4 Tools Used</h3>
-        <table class="scope-table">
-            <tr><th>Tool</th><th>Purpose</th><th>Scans</th></tr>
-            {% set tool_counts = {} %}
-            {% for scan in scans %}
-                {% if scan.tool_name not in tool_counts %}{% set _ = tool_counts.update({scan.tool_name: 0}) %}{% endif %}
-                {% set _ = tool_counts.update({scan.tool_name: tool_counts[scan.tool_name] + 1}) %}
-            {% endfor %}
-            {% for tool, count in tool_counts.items() %}
-            <tr><td style="font-family:monospace;">{{ tool }}</td><td>{{ tool_purposes.get(tool, 'Security assessment') }}</td><td>{{ count }}</td></tr>
-            {% endfor %}
+        <table class="data-table">
+            <thead>
+                <tr><th>Tool</th><th>Purpose</th><th>Scans Run</th></tr>
+            </thead>
+            <tbody>
+                {% set tool_counts = {} %}
+                {% for scan in scans %}
+                    {% if scan.tool_name not in tool_counts %}{% set _ = tool_counts.update({scan.tool_name: 0}) %}{% endif %}
+                    {% set _ = tool_counts.update({scan.tool_name: tool_counts[scan.tool_name] + 1}) %}
+                {% endfor %}
+                {% for tool, count in tool_counts.items() %}
+                <tr>
+                    <td style="font-family:monospace;font-weight:600;">{{ tool }}</td>
+                    <td>{{ tool_purposes.get(tool, 'Security assessment') }}</td>
+                    <td style="text-align:center;font-weight:700;">{{ count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
         </table>
 
         <!-- 2. EXECUTIVE SUMMARY -->
-        <h2 class="section-title" id="executive">2. Executive Summary</h2>
-        <p style="color:#444;margin-bottom:16px;">
-            A penetration test was conducted against <strong>{{ target }}</strong> as part of the <strong>{{ project_name }}</strong> engagement.
-            A total of <strong>{{ total_scans }}</strong> scans were executed using {{ tool_counts|length }} different tools,
-            identifying <strong>{{ total_findings }}</strong> findings across varying severity levels.
+        <h2 class="section-title page-break" id="executive">2. Executive Summary</h2>
+        <p style="color:#444;margin-bottom:20px;">
+            A penetration test was conducted against <strong>{{ target }}</strong> as part of the
+            <strong>{{ project_name }}</strong> engagement.
+            A total of <strong>{{ total_scans }}</strong> scans were executed using
+            <strong>{{ tool_counts|length }}</strong> different tools, identifying
+            <strong>{{ total_findings }}</strong> actionable findings across varying severity levels.
         </p>
 
         <div class="stats-row">
-            <div class="stat-box"><div class="num num-critical">{{ severity_counts.get('critical', 0) }}</div><div class="lbl">Critical</div></div>
-            <div class="stat-box"><div class="num num-high">{{ severity_counts.get('high', 0) }}</div><div class="lbl">High</div></div>
-            <div class="stat-box"><div class="num num-medium">{{ severity_counts.get('medium', 0) }}</div><div class="lbl">Medium</div></div>
-            <div class="stat-box"><div class="num num-info">{{ severity_counts.get('info', 0) + severity_counts.get('low', 0) }}</div><div class="lbl">Low / Info</div></div>
+            <div class="stat-box critical-box">
+                <div class="num num-critical">{{ severity_counts.get('critical', 0) }}</div>
+                <div class="lbl">Critical</div>
+            </div>
+            <div class="stat-box high-box">
+                <div class="num num-high">{{ severity_counts.get('high', 0) }}</div>
+                <div class="lbl">High</div>
+            </div>
+            <div class="stat-box medium-box">
+                <div class="num num-medium">{{ severity_counts.get('medium', 0) }}</div>
+                <div class="lbl">Medium</div>
+            </div>
+            <div class="stat-box low-box">
+                <div class="num num-low">{{ severity_counts.get('low', 0) }}</div>
+                <div class="lbl">Low</div>
+            </div>
         </div>
 
-        {% set total_f = total_findings if total_findings > 0 else 1 %}
-        <div class="risk-bar">
-            {% if severity_counts.get('critical', 0) > 0 %}<div class="seg seg-critical" style="width:{{ (severity_counts.get('critical',0)/total_f*100)|round }}%">{{ severity_counts.get('critical',0) }}</div>{% endif %}
-            {% if severity_counts.get('high', 0) > 0 %}<div class="seg seg-high" style="width:{{ (severity_counts.get('high',0)/total_f*100)|round }}%">{{ severity_counts.get('high',0) }}</div>{% endif %}
-            {% if severity_counts.get('medium', 0) > 0 %}<div class="seg seg-medium" style="width:{{ (severity_counts.get('medium',0)/total_f*100)|round }}%">{{ severity_counts.get('medium',0) }}</div>{% endif %}
-            {% if severity_counts.get('low', 0) > 0 %}<div class="seg seg-low" style="width:{{ (severity_counts.get('low',0)/total_f*100)|round }}%">{{ severity_counts.get('low',0) }}</div>{% endif %}
-            {% if severity_counts.get('info', 0) > 0 %}<div class="seg seg-info" style="width:{{ (severity_counts.get('info',0)/total_f*100)|round }}%">{{ severity_counts.get('info',0) }}</div>{% endif %}
+        <!-- SVG Donut Chart -->
+        {% set chart_total = severity_counts.get('critical',0) + severity_counts.get('high',0) + severity_counts.get('medium',0) + severity_counts.get('low',0) %}
+        {% if chart_total > 0 %}
+        <div class="chart-section">
+            <svg class="chart-svg" width="180" height="180" viewBox="0 0 180 180">
+                {% set radius = 70 %}
+                {% set circumference = 2 * 3.14159 * radius %}
+                {% set cx = 90 %}
+                {% set cy = 90 %}
+                {% set colors = {'critical': '#c0392b', 'high': '#e67e22', 'medium': '#f1c40f', 'low': '#3498db'} %}
+                {% set offset = [0] %}
+                {% for sev_name in ['critical', 'high', 'medium', 'low'] %}
+                    {% set count = severity_counts.get(sev_name, 0) %}
+                    {% if count > 0 %}
+                        {% set pct = count / chart_total %}
+                        {% set dash = pct * circumference %}
+                        {% set gap = circumference - dash %}
+                        <circle cx="{{ cx }}" cy="{{ cy }}" r="{{ radius }}"
+                            fill="none" stroke="{{ colors[sev_name] }}" stroke-width="28"
+                            stroke-dasharray="{{ dash }} {{ gap }}"
+                            stroke-dashoffset="{{ -offset[0] }}"
+                            transform="rotate(-90 {{ cx }} {{ cy }})" />
+                        {% if offset.append(offset.pop() + dash) %}{% endif %}
+                    {% endif %}
+                {% endfor %}
+                <circle cx="{{ cx }}" cy="{{ cy }}" r="50" fill="#fff" />
+                <text x="{{ cx }}" y="{{ cy - 6 }}" text-anchor="middle" font-size="26" font-weight="800" fill="#1a1a2e">{{ chart_total }}</text>
+                <text x="{{ cx }}" y="{{ cy + 12 }}" text-anchor="middle" font-size="9" fill="#888" text-transform="uppercase" letter-spacing="1">FINDINGS</text>
+            </svg>
+            <div class="chart-legend">
+                {% if severity_counts.get('critical', 0) > 0 %}
+                <div class="chart-legend-item">
+                    <div class="chart-legend-color" style="background:#c0392b;"></div>
+                    <span class="chart-legend-label">Critical</span>
+                    <span class="chart-legend-count">{{ severity_counts.get('critical', 0) }}</span>
+                </div>
+                {% endif %}
+                {% if severity_counts.get('high', 0) > 0 %}
+                <div class="chart-legend-item">
+                    <div class="chart-legend-color" style="background:#e67e22;"></div>
+                    <span class="chart-legend-label">High</span>
+                    <span class="chart-legend-count">{{ severity_counts.get('high', 0) }}</span>
+                </div>
+                {% endif %}
+                {% if severity_counts.get('medium', 0) > 0 %}
+                <div class="chart-legend-item">
+                    <div class="chart-legend-color" style="background:#f1c40f;"></div>
+                    <span class="chart-legend-label">Medium</span>
+                    <span class="chart-legend-count">{{ severity_counts.get('medium', 0) }}</span>
+                </div>
+                {% endif %}
+                {% if severity_counts.get('low', 0) > 0 %}
+                <div class="chart-legend-item">
+                    <div class="chart-legend-color" style="background:#3498db;"></div>
+                    <span class="chart-legend-label">Low</span>
+                    <span class="chart-legend-count">{{ severity_counts.get('low', 0) }}</span>
+                </div>
+                {% endif %}
+            </div>
         </div>
+        {% endif %}
+
+        {% if chart_total > 0 %}
+        {% set total_f = chart_total %}
+        <div class="risk-bar">
+            {% if severity_counts.get('critical', 0) > 0 %}<div class="seg seg-critical" style="width:{{ (severity_counts.get('critical',0)/total_f*100)|round|int }}%">{{ severity_counts.get('critical',0) }}</div>{% endif %}
+            {% if severity_counts.get('high', 0) > 0 %}<div class="seg seg-high" style="width:{{ (severity_counts.get('high',0)/total_f*100)|round|int }}%">{{ severity_counts.get('high',0) }}</div>{% endif %}
+            {% if severity_counts.get('medium', 0) > 0 %}<div class="seg seg-medium" style="width:{{ (severity_counts.get('medium',0)/total_f*100)|round|int }}%">{{ severity_counts.get('medium',0) }}</div>{% endif %}
+            {% if severity_counts.get('low', 0) > 0 %}<div class="seg seg-low" style="width:{{ (severity_counts.get('low',0)/total_f*100)|round|int }}%">{{ severity_counts.get('low',0) }}</div>{% endif %}
+        </div>
+        {% endif %}
+
+        <h3 class="subsection">2.1 Risk Assessment</h3>
+        <p style="color:#444;">
+            {% if severity_counts.get('critical', 0) > 0 %}
+            The assessment identified <strong style="color:#c0392b;">{{ severity_counts.get('critical', 0) }} critical</strong> finding(s)
+            that require immediate attention and remediation.
+            {% endif %}
+            {% if severity_counts.get('high', 0) > 0 %}
+            <strong style="color:#e67e22;">{{ severity_counts.get('high', 0) }} high</strong>-severity finding(s) were identified
+            that should be addressed within a short timeframe.
+            {% endif %}
+            {% if severity_counts.get('medium', 0) > 0 %}
+            <strong style="color:#d4a017;">{{ severity_counts.get('medium', 0) }} medium</strong>-severity finding(s) require
+            attention as part of routine security maintenance.
+            {% endif %}
+            {% if severity_counts.get('low', 0) > 0 %}
+            <strong style="color:#3498db;">{{ severity_counts.get('low', 0) }} low</strong>-severity finding(s) represent
+            minor issues or informational items.
+            {% endif %}
+            {% if chart_total == 0 %}
+            No actionable findings were identified during this assessment. This does not guarantee the absence of vulnerabilities.
+            {% endif %}
+        </p>
 
         <!-- 3. FINDINGS SUMMARY TABLE -->
-        <h2 class="section-title" id="findings-summary">3. Findings Summary</h2>
+        <h2 class="section-title page-break" id="findings-summary">3. Findings Summary</h2>
         {% if findings %}
-        <table class="findings-table">
+        <table class="data-table">
             <thead>
-                <tr><th>#</th><th>Title</th><th>Severity</th><th>Component</th></tr>
+                <tr><th style="width:60px;">#</th><th>Title</th><th style="width:80px;">Severity</th><th>Component</th><th>Tool</th></tr>
             </thead>
             <tbody>
                 {% for f in findings %}
@@ -219,17 +413,18 @@
                     <td style="font-weight:700;color:#999;">F-{{ "%03d"|format(loop.index) }}</td>
                     <td><a href="#finding-{{ loop.index }}">{{ f.title }}</a></td>
                     <td><span class="sev-badge sev-{{ f.severity }}">{{ f.severity }}</span></td>
-                    <td style="font-family:monospace;font-size:11px;">{{ f.component or target }}</td>
+                    <td style="font-family:monospace;font-size:10px;">{{ f.component or target }}</td>
+                    <td style="font-family:monospace;font-size:10px;">{{ f.tool or 'N/A' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
         {% else %}
-        <p style="color:#888;font-style:italic;">No findings were identified during this assessment. This does not guarantee the absence of vulnerabilities.</p>
+        <p style="color:#888;font-style:italic;">No actionable findings were identified during this assessment. This does not guarantee the absence of vulnerabilities.</p>
         {% endif %}
 
         <!-- 4. DETAILED FINDINGS -->
-        <h2 class="section-title" id="findings-detail">4. Detailed Findings</h2>
+        <h2 class="section-title page-break" id="findings-detail">4. Detailed Findings</h2>
         {% for f in findings %}
         <div class="finding-card {{ f.severity }}" id="finding-{{ loop.index }}">
             <div class="finding-header">
@@ -238,8 +433,9 @@
                 <span class="finding-title">{{ f.title }}</span>
             </div>
             <dl class="finding-meta">
-                <dt>Affected Component</dt><dd>{{ f.component or target }}</dd>
-                <dt>Tool</dt><dd>{{ f.tool or 'N/A' }}</dd>
+                <div><dt>Affected Component</dt><dd>{{ f.component or target }}</dd></div>
+                <div><dt>Tool</dt><dd>{{ f.tool or 'N/A' }}</dd></div>
+                <div><dt>Severity</dt><dd>{{ f.severity|upper }}</dd></div>
             </dl>
             <div class="finding-desc">{{ f.description }}</div>
 
@@ -260,7 +456,7 @@
         {% endfor %}
 
         <!-- 5. TOOL EXECUTION LOG -->
-        <h2 class="section-title" id="cmd-log">5. Tool Execution Log</h2>
+        <h2 class="section-title page-break" id="cmd-log">5. Tool Execution Log</h2>
         <table class="cmd-log-table">
             <thead><tr><th>#</th><th>Tool</th><th>Command</th><th>Status</th><th>Started</th><th>Duration</th></tr></thead>
             <tbody>
@@ -279,11 +475,11 @@
 
         <!-- 6. RAW OUTPUT APPENDIX -->
         {% if include_raw %}
-        <h2 class="section-title" id="appendix">6. Raw Output Appendix</h2>
+        <h2 class="section-title page-break" id="appendix">6. Raw Output Appendix</h2>
         {% for scan in scans %}
         {% if scan.output %}
         <div class="appendix-scan">
-            <div class="appendix-header">{{ scan.tool_name | upper }} &mdash; {{ scan.command[:80] }}{% if scan.command|length > 80 %}...{% endif %}</div>
+            <div class="appendix-header">{{ scan.tool_name | upper }} -- {{ scan.command[:80] }}{% if scan.command|length > 80 %}...{% endif %}</div>
             <div class="appendix-output">{{ scan.output[:8000] }}</div>
         </div>
         {% endif %}
@@ -292,7 +488,7 @@
 
         <!-- FOOTER -->
         <div class="footer">
-            <div class="conf">{{ classification or 'CONFIDENTIAL' }} &mdash; Do Not Distribute</div>
+            <div class="conf">{{ classification or 'CONFIDENTIAL' }} -- Do Not Distribute</div>
             Sawlah-web Penetration Testing Framework | Report generated {{ generated_at }}<br>
             This document contains sensitive security information. Handle according to {{ classification or 'CONFIDENTIAL' }} classification.
         </div>
