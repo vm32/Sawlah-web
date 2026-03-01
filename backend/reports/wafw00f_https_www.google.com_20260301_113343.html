@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WAF Detection Report - wafw00f</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI','Helvetica Neue',Arial,sans-serif;background:#0a0a0a;color:#e5e5e5;line-height:1.6;font-size:13px}
+a{color:#dc2626;text-decoration:none}
+a:hover{text-decoration:underline}
+.report-wrap{max-width:1200px;margin:0 auto;padding:20px}
+.cover{text-align:center;padding:60px 40px;border-bottom:3px solid #dc2626;margin-bottom:40px}
+.cover .logo{font-size:42px;font-weight:800;color:#dc2626;letter-spacing:2px}
+.cover .logo-sub{font-size:11px;text-transform:uppercase;letter-spacing:6px;color:#666;margin:4px 0 30px}
+.cover h1{font-size:24px;font-weight:700;color:#fff;margin-bottom:4px}
+.cover .target{font-size:16px;color:#dc2626;font-family:monospace;margin-bottom:30px}
+.cover-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left;max-width:450px;margin:0 auto}
+.cover-meta dt{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;font-weight:600}
+.cover-meta dd{font-size:13px;color:#ccc;margin-bottom:6px}
+.section-title{font-size:18px;font-weight:700;color:#fff;border-bottom:2px solid #dc2626;padding-bottom:6px;margin:36px 0 16px}
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:16px 0}
+.stat-box{background:#141414;border:1px solid #222;border-radius:8px;padding:16px;text-align:center}
+.stat-box .num{font-size:28px;font-weight:800}
+.stat-box .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;margin-top:2px}
+.num-critical{color:#dc2626}.num-high{color:#e67e22}.num-medium{color:#f1c40f}.num-low{color:#3498db}.num-total{color:#fff}
+.risk-bar{display:flex;height:20px;border-radius:6px;overflow:hidden;margin:12px 0;background:#1a1a1a}
+.risk-bar .seg{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}
+.seg-critical{background:#dc2626}.seg-high{background:#e67e22}.seg-medium{background:#f1c40f;color:#333}.seg-low{background:#3498db}.seg-info{background:#95a5a6}
+.findings-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
+.findings-table th{background:#1a1a1a;color:#888;padding:10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #dc2626}
+.findings-table td{padding:10px;border-bottom:1px solid #1a1a1a;vertical-align:top}
+.findings-table tr:hover{background:#111}
+.finding-num{font-weight:700;color:#666;font-family:monospace;white-space:nowrap}
+.finding-name{font-weight:600;color:#e5e5e5;min-width:180px}
+.finding-rec ul{margin:0;padding-left:16px;font-size:11px;color:#aaa}
+.finding-rec li{margin:2px 0}
+.poc-inline{background:#0d0d0d;border:1px solid #222;border-radius:4px;padding:6px 8px;font-size:10px;color:#888;white-space:pre-wrap;max-height:120px;overflow-y:auto;margin:0;font-family:'JetBrains Mono','Fira Code',monospace}
+.sev{display:inline-block;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:700;text-transform:uppercase;color:#fff;white-space:nowrap}
+.sev-critical{background:#dc2626}.sev-high{background:#e67e22}.sev-medium{background:#f39c12;color:#333}.sev-low{background:#3498db}.sev-info{background:#555}
+.comparison-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
+.comparison-table th{background:#1a1a1a;color:#888;padding:8px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #dc2626}
+.comparison-table td{padding:8px 12px;border-bottom:1px solid #1a1a1a}
+.comparison-table tr:hover{background:#111}
+.url-cell{font-family:monospace;color:#dc2626;font-size:12px}
+.match-ok{color:#4ade80;font-weight:700}.match-warn{color:#f59e0b;font-weight:700}
+.finding-card{border:1px solid #222;border-left:4px solid;border-radius:6px;padding:16px 20px;margin:16px 0;background:#111}
+.finding-card.critical{border-left-color:#dc2626}.finding-card.high{border-left-color:#e67e22}.finding-card.medium{border-left-color:#f39c12}.finding-card.low{border-left-color:#3498db}.finding-card.info{border-left-color:#555}
+.finding-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.finding-id{font-size:11px;font-weight:700;color:#666}
+.finding-title{font-size:15px;font-weight:700;color:#fff}
+.finding-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;font-size:12px}
+.finding-meta dt{color:#666;font-size:10px;text-transform:uppercase}.finding-meta dd{color:#ccc}
+.finding-desc{margin:10px 0;color:#aaa;font-size:13px;line-height:1.7}
+.poc-block{background:#0a0a0a;border:1px solid #222;border-radius:6px;margin:10px 0;overflow:hidden}
+.poc-label{background:#1a1a1a;color:#888;padding:4px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.poc-output{padding:10px 14px;font-family:'JetBrains Mono','Fira Code',monospace;font-size:10px;color:#888;white-space:pre-wrap;max-height:300px;overflow-y:auto;line-height:1.5}
+.remediation{background:#0d1f0d;border:1px solid #1a3a1a;border-radius:6px;padding:10px 14px;margin:10px 0;font-size:12px;color:#4ade80}
+.remediation strong{color:#22c55e}.remediation ol{margin:6px 0 0 16px;color:#6ee7b7}.remediation li{margin:3px 0}
+.raw-block{background:#050505;border:1px solid #222;border-radius:8px;padding:16px;margin:12px 0;max-height:500px;overflow-y:auto;font-family:'JetBrains Mono','Fira Code',monospace;font-size:11px;line-height:1.6}
+.raw-line{padding:1px 0;white-space:pre-wrap;word-break:break-all}
+.hl-waf{color:#4ade80;font-weight:700}.hl-nowaf{color:#dc2626;font-weight:700}.hl-sep{color:#444;font-weight:700}.hl-info{color:#60a5fa}
+.toc{margin:16px 0}.toc ol{list-style:none;counter-reset:toc}.toc ol li{counter-increment:toc;padding:6px 0;border-bottom:1px dotted #222}.toc ol li::before{content:counter(toc) ". ";font-weight:700;color:#dc2626}.toc ol li a{color:#ccc;font-size:13px}
+.footer{border-top:2px solid #dc2626;padding-top:16px;margin-top:40px;text-align:center;font-size:10px;color:#555}
+.footer .conf{font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+@media print{
+  body{background:#fff;color:#1a1a2e}
+  .report-wrap{max-width:100%}
+  .stat-box{background:#fafafa;border-color:#eee}
+  .findings-table td,.findings-table th{border-bottom-color:#eee}
+  .findings-table th,.comparison-table th{background:#1a1a2e;color:#fff}
+  .finding-card{background:#fff;border-color:#ddd}
+  .raw-block{background:#f7f7f7;color:#333;border-color:#ddd}
+  .poc-inline{background:#f7f7f7;color:#333;border-color:#ddd}
+  .remediation{background:#eaf7ea;border-color:#c3e6c3;color:#2d6a2d}
+  .cover .logo,.sev-critical{color:#c0392b}
+  .footer{border-top-color:#c0392b}
+}
+</style>
+</head>
+<body>
+<div class="report-wrap">
+
+<div class="cover">
+  <div class="logo">SAWLAH</div>
+  <div class="logo-sub">WAF Detection Scanner</div>
+  <h1>WAF Detection Report (Double-Check)</h1>
+  <div class="target">2 URL(s) scanned</div>
+  <dl class="cover-meta">
+    <dt>Scan Date</dt><dd>2026-03-01 16:33 UTC</dd>
+    <dt>Scanner</dt><dd>wafw00f / Sawlah-web</dd>
+    <dt>Total URLs</dt><dd>2</dd>
+    <dt>Total Findings</dt><dd>2</dd>
+  </dl>
+</div>
+
+<div class="toc">
+  <h2 class="section-title">Table of Contents</h2>
+  <ol>
+    <li><a href="#summary">Executive Summary</a></li>
+    <li><a href="#findings-table">Findings Table</a></li>
+    <li><a href="#findings-detail">Detailed Findings</a></li>
+    <li><a href="#comparison">URL Comparison (Pass 1 vs Pass 2)</a></li>
+    <li><a href="#raw">Raw Output</a></li>
+  </ol>
+</div>
+
+<h2 class="section-title" id="summary">1. Executive Summary</h2>
+<div class="stats-grid">
+  <div class="stat-box"><div class="num num-total">2</div><div class="lbl">URLs Scanned</div></div>
+  <div class="stat-box"><div class="num num-medium">1</div><div class="lbl">WAFs Found</div></div>
+  <div class="stat-box"><div class="num num-critical">1</div><div class="lbl">Unprotected</div></div>
+  <div class="stat-box"><div class="num" style="color:#4ade80">1</div><div class="lbl">Confirmed</div></div>
+  <div class="stat-box"><div class="num num-high">0</div><div class="lbl">Inconsistent</div></div>
+</div>
+<div class="risk-bar"><div class="seg seg-critical" style="width:50%">1</div><div class="seg seg-medium" style="width:50%">1</div></div>
+<p style="color:#888;margin:12px 0">
+  wafw00f scanned <strong style="color:#ccc">2</strong> URL(s) with double-check verification,
+  producing <strong style="color:#ccc">2</strong> findings.
+  <strong style="color:#dc2626">1</strong> URL(s) appear unprotected by any WAF.
+</p>
+
+<h2 class="section-title" id="findings-table">2. Findings Table</h2>
+<table class="findings-table">
+  <thead><tr><th>#</th><th>Finding Name</th><th>Description</th><th>Recommendations</th><th>POC</th><th>Score</th></tr></thead>
+  <tbody>
+        <tr>
+            <td class="finding-num">W-001</td>
+            <td class="finding-name">No WAF Detected: https://www.google.com</td>
+            <td>The target https://www.google.com does not appear to be protected by any Web Application Firewall. This was confirmed by double-check scanning. Without a WAF, the application is directly exposed to web-based attacks.</td>
+            <td class="finding-rec"><ul><li>Deploy a Web Application Firewall (WAF) to protect against common web attacks (SQLi, XSS, RFI).</li><li>Consider cloud-based WAF solutions (Cloudflare, AWS WAF, Akamai) for immediate protection.</li></ul></td>
+            <td><pre class="poc-inline">=== Pass 1 ===
+[1;97m______
+                  [1;97m/      \
+                 [1;97m(  Woof! )
+                  [1;97m\  ____/                      [1;91m)
+                  [1;97m,,                           [1;91m) ([1;93m_
+             [1;93m.-. [1;97m-    [1;92m_______                 [1;91m( [1;93m|__|
+            [1;93m()``; [1;92m|==|_______)                [1;91m.)[1;93m|__|
+            [1;93m/ ('        [1;92m/|\                  [1;91m(  [1;93m|__|
+        [1;93m(  /  )       [1;92m / | \                  [1;91m. [1;93m|__|
+         [1;93m\(_)_))      [1;92m/  |  \                   [1;93m|__|[0m
+
+                    [1;96m~ WAFW00F : [1;94mv2.3.2 ~[1;97m
+    The Web Application Firewall Fingerprinting Toolkit
+    [0m
+[*] Checking https://www.goo</pre></td>
+            <td><span class="sev sev-critical">CRITICAL</span></td>
+        </tr>
+        <tr>
+            <td class="finding-num">W-002</td>
+            <td class="finding-name">WAF Detected (Confirmed): [1;96mCloudflare (Cloudflare Inc.)[0m</td>
+            <td>The target https://www.cloudflare.com is protected by [1;96mCloudflare (Cloudflare Inc.)[0m WAF. Detection was confirmed across both scan passes. The WAF was positively identified.</td>
+            <td class="finding-rec"><ul><li>Verify WAF rules are up-to-date and cover OWASP Top 10 attack categories.</li><li>Test WAF bypass techniques to ensure the WAF configuration is robust against evasion.</li></ul></td>
+            <td><pre class="poc-inline">=== Pass 1 ===
+?              ,.   (   .      )        .      "
+         __        ??          ("     )  )'     ,'        )  . (`     '`
+    (___()'`;   ???          .; )  ' (( (" )    ;(,     ((  (  ;)  "  )")
+    /,___ /`                 _"., ,._'_.,)_(..,( . )_  _' )_') (. _..( ' )
+    \\   \\                 |____|____|____|____|____|____|____|____|____|
+
+                                ~ WAFW00F : v2.3.2 ~
+                    ~ Sniffing Web Application Firewalls since 2014 ~
+
+[*] Checking https://www.cloudflare.com
+[+] The site [1;94mhttps://www.cloudflare.com[0m is behind [1;96mCloudflare (Cloudflare Inc.)[0m WAF.
+[~] Number of requests: 2
+
+=== Pass 2 (Double Check) ===
+?              ,.   (   .      )        .      "
+         __        ??          ("     )  )'     ,'        )  .</pre></td>
+            <td><span class="sev sev-medium">MEDIUM</span></td>
+        </tr></tbody>
+</table>
+
+<h2 class="section-title" id="findings-detail">3. Detailed Findings</h2>
+
+        <div class="finding-card critical" id="finding-W-001">
+            <div class="finding-header">
+                <span class="finding-id">W-001</span>
+                <span class="sev sev-critical">CRITICAL</span>
+                <span class="finding-title">No WAF Detected: https://www.google.com</span>
+            </div>
+            <div class="finding-meta">
+                <div><dt>Affected Component</dt><dd>https://www.google.com</dd></div>
+                <div><dt>Tool</dt><dd>wafw00f (double-check)</dd></div>
+            </div>
+            <div class="finding-desc">The target https://www.google.com does not appear to be protected by any Web Application Firewall. This was confirmed by double-check scanning. Without a WAF, the application is directly exposed to web-based attacks.</div>
+            <div class="poc-block">
+                <div class="poc-label">Proof of Concept</div>
+                <div class="poc-output">=== Pass 1 ===
+[1;97m______
+                  [1;97m/      \
+                 [1;97m(  Woof! )
+                  [1;97m\  ____/                      [1;91m)
+                  [1;97m,,                           [1;91m) ([1;93m_
+             [1;93m.-. [1;97m-    [1;92m_______                 [1;91m( [1;93m|__|
+            [1;93m()``; [1;92m|==|_______)                [1;91m.)[1;93m|__|
+            [1;93m/ ('        [1;92m/|\                  [1;91m(  [1;93m|__|
+        [1;93m(  /  )       [1;92m / | \                  [1;91m. [1;93m|__|
+         [1;93m\(_)_))      [1;92m/  |  \                   [1;93m|__|[0m
+
+                    [1;96m~ WAFW00F : [1;94mv2.3.2 ~[1;97m
+    The Web Application Firewall Fingerprinting Toolkit
+    [0m
+[*] Checking https://www.google.com
+[+] Generic Detection results:
+[-] No WAF detected by the generic detection
+[~] Number of requests: 7
+
+=== Pass 2 (Double Check) ===
+?              ,.   (   .      )        .      "
+         __        ??          ("     )  )'     ,'        )  . (`     '`
+    (___()'`;   ???          .; )  ' (( (" )    ;(,     ((  (  ;)  "  )")
+    /,___ /`                 _"., ,._'_.,)_(..,( . )_  _' )_') (. _..( ' )
+    \\   \\                 |____|____|____|____|____|____|____|____|____|
+
+                                ~ WAFW00F : v2.3.2 ~
+                    ~ Sniffing Web Application Firewalls since 2014 ~
+
+[*] Checking https://www.google.com
+[+] Generic Detection results:
+[-] No WAF detected by the generic detection
+[~] Number of requests: 7</div>
+            </div>
+            <div class="remediation">
+                <strong>Recommendations:</strong>
+                <ol><li>Deploy a Web Application Firewall (WAF) to protect against common web attacks (SQLi, XSS, RFI).</li><li>Consider cloud-based WAF solutions (Cloudflare, AWS WAF, Akamai) for immediate protection.</li></ol>
+            </div>
+        </div>
+        <div class="finding-card medium" id="finding-W-002">
+            <div class="finding-header">
+                <span class="finding-id">W-002</span>
+                <span class="sev sev-medium">MEDIUM</span>
+                <span class="finding-title">WAF Detected (Confirmed): [1;96mCloudflare (Cloudflare Inc.)[0m</span>
+            </div>
+            <div class="finding-meta">
+                <div><dt>Affected Component</dt><dd>https://www.cloudflare.com</dd></div>
+                <div><dt>Tool</dt><dd>wafw00f (double-check)</dd></div>
+            </div>
+            <div class="finding-desc">The target https://www.cloudflare.com is protected by [1;96mCloudflare (Cloudflare Inc.)[0m WAF. Detection was confirmed across both scan passes. The WAF was positively identified.</div>
+            <div class="poc-block">
+                <div class="poc-label">Proof of Concept</div>
+                <div class="poc-output">=== Pass 1 ===
+?              ,.   (   .      )        .      "
+         __        ??          ("     )  )'     ,'        )  . (`     '`
+    (___()'`;   ???          .; )  ' (( (" )    ;(,     ((  (  ;)  "  )")
+    /,___ /`                 _"., ,._'_.,)_(..,( . )_  _' )_') (. _..( ' )
+    \\   \\                 |____|____|____|____|____|____|____|____|____|
+
+                                ~ WAFW00F : v2.3.2 ~
+                    ~ Sniffing Web Application Firewalls since 2014 ~
+
+[*] Checking https://www.cloudflare.com
+[+] The site [1;94mhttps://www.cloudflare.com[0m is behind [1;96mCloudflare (Cloudflare Inc.)[0m WAF.
+[~] Number of requests: 2
+
+=== Pass 2 (Double Check) ===
+?              ,.   (   .      )        .      "
+         __        ??          ("     )  )'     ,'        )  . (`     '`
+    (___()'`;   ???          .; )  ' (( (" )    ;(,     ((  (  ;)  "  )")
+    /,___ /`                 _"., ,._'_.,)_(..,( . )_  _' )_') (. _..( ' )
+    \\   \\                 |____|____|____|____|____|____|____|____|____|
+
+                                ~ WAFW00F : v2.3.2 ~
+                    ~ Sniffing Web Application Firewalls since 2014 ~
+
+[*] Checking https://www.cloudflare.com
+[+] The site [1;94mhttps://www.cloudflare.com[0m is behind [1;96mCloudflare (Cloudflare Inc.)[0m WAF.
+[~] Number of requests: 2</div>
+            </div>
+            <div class="remediation">
+                <strong>Recommendations:</strong>
+                <ol><li>Verify WAF rules are up-to-date and cover OWASP Top 10 attack categories.</li><li>Test WAF bypass techniques to ensure the WAF configuration is robust against evasion.</li></ol>
+            </div>
+        </div>
+
+<h2 class="section-title" id="comparison">4. URL Comparison (Pass 1 vs Pass 2)</h2>
+<table class="comparison-table">
+  <thead><tr><th>URL</th><th>Pass 1 Result</th><th>Pass 2 Result</th><th>Status</th></tr></thead>
+  <tbody>
+        <tr>
+            <td class="url-cell">https://www.google.com</td>
+            <td>No WAF</td>
+            <td>No WAF</td>
+            <td><span class="match-ok">Confirmed</span></td>
+        </tr>
+        <tr>
+            <td class="url-cell">https://www.cloudflare.com</td>
+            <td>[1;96mCloudflare (Cloudflare Inc.)[0m</td>
+            <td>[1;96mCloudflare (Cloudflare Inc.)[0m</td>
+            <td><span class="match-ok">Confirmed</span></td>
+        </tr></tbody>
+</table>
+
+<h2 class="section-title" id="raw">5. Raw Output</h2>
+<div class="raw-block"><div class="raw-line "></div><div class="raw-line hl-sep">============================================================</div><div class="raw-line hl-info">[*] Scanning: https://www.google.com</div><div class="raw-line hl-sep">============================================================</div><div class="raw-line "></div><div class="raw-line ">--- Pass 1 ---</div><div class="raw-line "></div><div class="raw-line ">                   [1;97m______</div><div class="raw-line ">                  [1;97m/      \</div><div class="raw-line ">                 [1;97m(  Woof! )</div><div class="raw-line ">                  [1;97m\  ____/                      [1;91m)</div><div class="raw-line ">                  [1;97m,,                           [1;91m) ([1;93m_</div><div class="raw-line ">             [1;93m.-. [1;97m-    [1;92m_______                 [1;91m( [1;93m|__|</div><div class="raw-line ">            [1;93m()``; [1;92m|==|_______)                [1;91m.)[1;93m|__|</div><div class="raw-line ">            [1;93m/ ('        [1;92m/|\                  [1;91m(  [1;93m|__|</div><div class="raw-line ">        [1;93m(  /  )       [1;92m / | \                  [1;91m. [1;93m|__|</div><div class="raw-line ">         [1;93m\(_)_))      [1;92m/  |  \                   [1;93m|__|[0m</div><div class="raw-line "></div><div class="raw-line ">                    [1;96m~ WAFW00F : [1;94mv2.3.2 ~[1;97m</div><div class="raw-line ">    The Web Application Firewall Fingerprinting Toolkit</div><div class="raw-line ">    [0m</div><div class="raw-line hl-info">[*] Checking https://www.google.com</div><div class="raw-line ">[+] Generic Detection results:</div><div class="raw-line hl-nowaf">[-] No WAF detected by the generic detection</div><div class="raw-line ">[~] Number of requests: 7</div><div class="raw-line "></div><div class="raw-line ">--- Pass 2 (Double Check) ---</div><div class="raw-line "></div><div class="raw-line ">                 ?              ,.   (   .      )        .      "</div><div class="raw-line ">         __        ??          ("     )  )'     ,'        )  . (`     '`</div><div class="raw-line ">    (___()'`;   ???          .; )  ' (( (" )    ;(,     ((  (  ;)  "  )")</div><div class="raw-line ">    /,___ /`                 _"., ,._'_.,)_(..,( . )_  _' )_') (. _..( ' )</div><div class="raw-line ">    \\   \\                 |____|____|____|____|____|____|____|____|____|</div><div class="raw-line "></div><div class="raw-line ">                                ~ WAFW00F : v2.3.2 ~</div><div class="raw-line ">                    ~ Sniffing Web Application Firewalls since 2014 ~</div><div class="raw-line "></div><div class="raw-line hl-info">[*] Checking https://www.google.com</div><div class="raw-line ">[+] Generic Detection results:</div><div class="raw-line hl-nowaf">[-] No WAF detected by the generic detection</div><div class="raw-line ">[~] Number of requests: 7</div><div class="raw-line "></div><div class="raw-line hl-sep">============================================================</div><div class="raw-line hl-info">[*] Scanning: https://www.cloudflare.com</div><div class="raw-line hl-sep">============================================================</div><div class="raw-line "></div><div class="raw-line ">--- Pass 1 ---</div><div class="raw-line "></div><div class="raw-line ">                 ?              ,.   (   .      )        .      "</div><div class="raw-line ">         __        ??          ("     )  )'     ,'        )  . (`     '`</div><div class="raw-line ">    (___()'`;   ???          .; )  ' (( (" )    ;(,     ((  (  ;)  "  )")</div><div class="raw-line ">    /,___ /`                 _"., ,._'_.,)_(..,( . )_  _' )_') (. _..( ' )</div><div class="raw-line ">    \\   \\                 |____|____|____|____|____|____|____|____|____|</div><div class="raw-line "></div><div class="raw-line ">                                ~ WAFW00F : v2.3.2 ~</div><div class="raw-line ">                    ~ Sniffing Web Application Firewalls since 2014 ~</div><div class="raw-line "></div><div class="raw-line hl-info">[*] Checking https://www.cloudflare.com</div><div class="raw-line hl-waf">[+] The site [1;94mhttps://www.cloudflare.com[0m is behind [1;96mCloudflare (Cloudflare Inc.)[0m WAF.</div><div class="raw-line ">[~] Number of requests: 2</div><div class="raw-line "></div><div class="raw-line ">--- Pass 2 (Double Check) ---</div><div class="raw-line "></div><div class="raw-line ">                 ?              ,.   (   .      )        .      "</div><div class="raw-line ">         __        ??          ("     )  )'     ,'        )  . (`     '`</div><div class="raw-line ">    (___()'`;   ???          .; )  ' (( (" )    ;(,     ((  (  ;)  "  )")</div><div class="raw-line ">    /,___ /`                 _"., ,._'_.,)_(..,( . )_  _' )_') (. _..( ' )</div><div class="raw-line ">    \\   \\                 |____|____|____|____|____|____|____|____|____|</div><div class="raw-line "></div><div class="raw-line ">                                ~ WAFW00F : v2.3.2 ~</div><div class="raw-line ">                    ~ Sniffing Web Application Firewalls since 2014 ~</div><div class="raw-line "></div><div class="raw-line hl-info">[*] Checking https://www.cloudflare.com</div><div class="raw-line hl-waf">[+] The site [1;94mhttps://www.cloudflare.com[0m is behind [1;96mCloudflare (Cloudflare Inc.)[0m WAF.</div><div class="raw-line ">[~] Number of requests: 2</div><div class="raw-line "></div><div class="raw-line hl-sep">============================================================</div><div class="raw-line hl-sep">[*] DOUBLE-CHECK SUMMARY</div><div class="raw-line hl-sep">============================================================</div><div class="raw-line hl-nowaf">  https://www.google.com: Pass1=No WAF | Pass2=No WAF =&gt; CONFIRMED</div><div class="raw-line ">  https://www.cloudflare.com: Pass1=[1;96mCloudflare (Cloudflare Inc.)[0m | Pass2=[1;96mCloudflare (Cloudflare Inc.)[0m =&gt; CONFIRMED</div></div>
+
+<div class="footer">
+  <div class="conf">Confidential &mdash; Security Assessment</div>
+  Sawlah-web Penetration Testing Framework | wafw00f Report generated 2026-03-01 16:33 UTC
+</div>
+
+</div>
+</body>
+</html>

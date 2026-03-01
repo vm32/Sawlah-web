@@ -14,6 +14,7 @@ import Exploit from "./pages/Exploit";
 import PasswordAttack from "./pages/PasswordAttack";
 import HashDiscovery from "./pages/HashDiscovery";
 import AdvancedScan from "./pages/AdvancedScan";
+import WafDetect from "./pages/WafDetect";
 import ReconMap from "./pages/ReconMap";
 import Automation from "./pages/Automation";
 import Reports from "./pages/Reports";
@@ -63,6 +64,7 @@ export default function App() {
         <Route path="/password" element={<PasswordAttack {...terminalProps} />} />
         <Route path="/hash" element={<HashDiscovery {...terminalProps} />} />
         <Route path="/advanced" element={<AdvancedScan {...terminalProps} />} />
+        <Route path="/waf" element={<WafDetect {...terminalProps} />} />
         <Route path="/recon-map" element={<ReconMap {...terminalProps} />} />
         <Route path="/automation" element={<Automation {...terminalProps} />} />
         <Route path="/reports" element={<Reports {...terminalProps} />} />

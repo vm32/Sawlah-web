@@ -51,4 +51,11 @@ export const niktoApi = {
   downloadReport: (filename) => `/api/nikto/reports/${filename}/download`,
 };
 
+export const wafw00fApi = {
+  run: (params) => api.post("/wafw00f/run", params),
+  reports: () => api.get("/wafw00f/reports"),
+  getReport: (filename) => `/api/wafw00f/reports/${filename}`,
+  downloadReport: (filename) => `/api/wafw00f/reports/${filename}/download`,
+};
+
 export default api;

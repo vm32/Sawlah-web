@@ -227,6 +227,27 @@ def extract_findings_from_output(tool_name: str, command: str, output: str) -> l
                 "remediation": REMEDIATION_MAP["vuln_detected"],
             })
 
+    elif tool_name == "wafw00f":
+        for m in re.finditer(r"is behind\s+(.+?)(?:\s+WAF)?\.?\s*$", output, re.I | re.M):
+            waf_name = m.group(1).strip()
+            findings.append({
+                "severity": "medium",
+                "title": f"WAF Detected: {waf_name}",
+                "description": f"The target is protected by {waf_name} WAF. Verify WAF rules cover OWASP Top 10.",
+                "evidence": _extract_context(output, m.start(), 300),
+                "component": "", "tool": tool_name, "command": command,
+                "remediation": "Ensure WAF rules are up-to-date. Test for WAF bypass techniques.",
+            })
+        if re.search(r"No WAF detected|is not behind a WAF", output, re.I):
+            findings.append({
+                "severity": "critical",
+                "title": "No WAF Detected",
+                "description": "The target does not appear to be protected by a Web Application Firewall.",
+                "evidence": output[:500],
+                "component": "", "tool": tool_name, "command": command,
+                "remediation": "Deploy a WAF to protect against common web attacks (SQLi, XSS, RFI).",
+            })
+
     return findings
 
 

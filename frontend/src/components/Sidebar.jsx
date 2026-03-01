@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Radar, Globe, SearchCode, Database, Network,
-  Shield, Key, Workflow, FileText, Server, Bug, Fingerprint,
+  Shield, ShieldAlert, Key, Workflow, FileText, Server, Bug, Fingerprint,
   Crosshair, Map, LogOut, User, ScanEye
 } from "lucide-react";
 
@@ -20,6 +20,7 @@ const NAV_SECTIONS = [
       { to: "/nikto", label: "Nikto Scanner", icon: ScanEye },
       { to: "/subenum", label: "Sub Enumeration", icon: Globe },
       { to: "/webscan", label: "Web Scanning", icon: SearchCode },
+      { to: "/waf", label: "WAF Detection", icon: ShieldAlert },
       { to: "/advanced", label: "Advanced Scan", icon: Crosshair },
     ],
   },
