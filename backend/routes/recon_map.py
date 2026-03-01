@@ -282,7 +282,7 @@ async def get_target_map(target: str):
     nodes = []
     edges = []
     node_id = 0
-    cx, cy = 500, 400
+    cx, cy = 600, 500
 
     center_id = f"target-{node_id}"
     nodes.append({
@@ -291,7 +291,7 @@ async def get_target_map(target: str):
         "position": {"x": cx, "y": cy},
     })
 
-    # WAF node - top left
+    # -- Info ring: WAF, SSL, WHOIS at fixed positions around center --
     waf = data.get("waf_status")
     if waf:
         node_id += 1
@@ -299,11 +299,10 @@ async def get_target_map(target: str):
         nodes.append({
             "id": wid, "type": "waf",
             "data": {"detected": waf.get("detected", False), "name": waf.get("waf_name", "Unknown"), "details": waf.get("details", "")},
-            "position": {"x": cx - 300, "y": cy - 180},
+            "position": {"x": cx - 350, "y": cy - 50},
         })
-        edges.append({"id": f"e-{center_id}-{wid}", "source": center_id, "target": wid})
+        edges.append({"id": f"e-{center_id}-{wid}", "source": center_id, "target": wid, "sourceHandle": "l"})
 
-    # Whois node - top right
     whois = data.get("whois_info")
     if whois:
         node_id += 1
@@ -311,11 +310,10 @@ async def get_target_map(target: str):
         nodes.append({
             "id": whid, "type": "whois",
             "data": whois,
-            "position": {"x": cx + 300, "y": cy - 180},
+            "position": {"x": cx + 350, "y": cy - 50},
         })
         edges.append({"id": f"e-{center_id}-{whid}", "source": center_id, "target": whid})
 
-    # SSL node - top center
     ssl = data.get("ssl_info")
     if ssl and (ssl.get("cert_subject") or ssl.get("protocols")):
         node_id += 1
@@ -323,17 +321,21 @@ async def get_target_map(target: str):
         nodes.append({
             "id": slid, "type": "ssl",
             "data": ssl,
-            "position": {"x": cx, "y": cy - 220},
+            "position": {"x": cx, "y": cy - 250},
         })
-        edges.append({"id": f"e-{center_id}-{slid}", "source": center_id, "target": slid})
+        edges.append({"id": f"e-{center_id}-{slid}", "source": center_id, "target": slid, "sourceHandle": "t"})
 
-    # Ports
+    # -- Ports: arc on the right side --
+    port_count = len(data["ports"])
     for i, port in enumerate(data["ports"]):
         node_id += 1
         pid = f"port-{node_id}"
-        angle = (i / max(len(data["ports"]), 1)) * 3.14 - 1.2
-        x = cx + math.cos(angle) * 220
-        y = cy + math.sin(angle) * 220
+        arc_start = -0.8
+        arc_span = 1.6
+        angle = arc_start + (i / max(port_count, 1)) * arc_span
+        r = 280
+        x = cx + math.cos(angle) * r
+        y = cy + math.sin(angle) * r
         nodes.append({
             "id": pid, "type": "port",
             "data": {"port": port["port"], "proto": port["proto"], "state": port["state"], "service": port["service"], "version": port.get("version", "")},
@@ -346,40 +348,11 @@ async def get_target_map(target: str):
             nodes.append({
                 "id": sid, "type": "service",
                 "data": {"label": f"{port['service']} {port['version']}"},
-                "position": {"x": x + math.cos(angle) * 130, "y": y + math.sin(angle) * 130},
+                "position": {"x": x + 160, "y": y},
             })
             edges.append({"id": f"e-{pid}-{sid}", "source": pid, "target": sid})
 
-    # Subdomains
-    subs = data.get("subdomains", [])[:30]
-    for i, sub in enumerate(subs):
-        node_id += 1
-        sid = f"sub-{node_id}"
-        spread = min(len(subs), 30)
-        angle = math.pi + (i / max(spread, 1)) * 1.8 - 0.9
-        r = 300 + (i % 3) * 60
-        nodes.append({
-            "id": sid, "type": "subdomain", "data": {"label": sub},
-            "position": {"x": cx + math.cos(angle) * r, "y": cy + math.sin(angle) * r},
-        })
-        edges.append({"id": f"e-{center_id}-{sid}", "source": center_id, "target": sid})
-
-    # Directories
-    directories = data.get("directories", [])[:25]
-    for i, d in enumerate(directories):
-        node_id += 1
-        did = f"dir-{node_id}"
-        col, row = i % 5, i // 5
-        url = d.get("url") or d.get("path", "")
-        nodes.append({
-            "id": did, "type": "directory", "data": {"url": url, "status": d.get("status", 0)},
-            "position": {"x": cx + 200 + col * 150, "y": cy + 280 + row * 60},
-        })
-        port80 = next((n for n in nodes if n.get("type") == "port" and n["data"].get("port") in (80, 443, 8080, 8443)), None)
-        parent = port80["id"] if port80 else center_id
-        edges.append({"id": f"e-{parent}-{did}", "source": parent, "target": did})
-
-    # Technologies
+    # -- Technologies: grid above center --
     techs = data.get("technologies", [])[:12]
     for i, tech in enumerate(techs):
         node_id += 1
@@ -388,21 +361,48 @@ async def get_target_map(target: str):
         nodes.append({
             "id": tid, "type": "technology",
             "data": {"name": tech.get("name", ""), "version": tech.get("version", ""), "category": tech.get("category", "Technology")},
-            "position": {"x": cx - 150 + col * 160, "y": cy - 350 - row * 70},
+            "position": {"x": cx - 250 + col * 170, "y": cy - 400 - row * 80},
         })
-        edges.append({"id": f"e-{center_id}-{tid}", "source": center_id, "target": tid})
+        edges.append({"id": f"e-{center_id}-{tid}", "source": center_id, "target": tid, "sourceHandle": "t"})
 
-    # Exploits
-    exploits = data.get("exploits", [])[:20]
+    # -- Subdomains: left-side column --
+    subs = data.get("subdomains", [])[:30]
+    for i, sub in enumerate(subs):
+        node_id += 1
+        sid = f"sub-{node_id}"
+        col, row = i % 2, i // 2
+        nodes.append({
+            "id": sid, "type": "subdomain", "data": {"label": sub},
+            "position": {"x": cx - 550 - col * 200, "y": cy + 150 + row * 40},
+        })
+        edges.append({"id": f"e-{center_id}-{sid}", "source": center_id, "target": sid, "sourceHandle": "l"})
+
+    # -- Directories: bottom-right grid --
+    directories = data.get("directories", [])[:20]
+    for i, d in enumerate(directories):
+        node_id += 1
+        did = f"dir-{node_id}"
+        col, row = i % 4, i // 4
+        url = d.get("url") or d.get("path", "")
+        nodes.append({
+            "id": did, "type": "directory", "data": {"url": url, "status": d.get("status", 0)},
+            "position": {"x": cx + 150 + col * 180, "y": cy + 300 + row * 50},
+        })
+        port80 = next((n for n in nodes if n.get("type") == "port" and n["data"].get("port") in (80, 443, 8080, 8443)), None)
+        parent = port80["id"] if port80 else center_id
+        edges.append({"id": f"e-{parent}-{did}", "source": parent, "target": did})
+
+    # -- Exploits: bottom-left --
+    exploits = data.get("exploits", [])[:16]
     tech_nodes_by_name = {n["data"]["name"].lower(): n["id"] for n in nodes if n["type"] == "technology"}
     for i, exp in enumerate(exploits):
         node_id += 1
         eid = f"exploit-{node_id}"
-        col, row = i % 4, i // 4
+        col, row = i % 3, i // 3
         nodes.append({
             "id": eid, "type": "exploit",
             "data": {"title": exp.get("title", "")[:70], "path": exp.get("path", ""), "search_term": exp.get("search_term", "")},
-            "position": {"x": cx - 400 + col * 180, "y": cy + 250 + row * 65},
+            "position": {"x": cx - 500 + col * 200, "y": cy + 500 + row * 70},
         })
         parent = center_id
         search = exp.get("search_term", "").lower()
@@ -412,15 +412,31 @@ async def get_target_map(target: str):
                 break
         edges.append({"id": f"e-{parent}-{eid}", "source": parent, "target": eid})
 
-    # Vulns
-    for i, vuln in enumerate(data.get("vulns", [])[:15]):
+    # -- Vulns: bottom center --
+    vulns_list = data.get("vulns", [])[:10]
+    for i, vuln in enumerate(vulns_list):
         node_id += 1
         vid = f"vuln-{node_id}"
+        col, row = i % 3, i // 3
         nodes.append({
             "id": vid, "type": "vuln", "data": {"label": vuln[:80]},
-            "position": {"x": cx - 300 + (i % 5) * 140, "y": cy + 500 + (i // 5) * 70},
+            "position": {"x": cx - 200 + col * 200, "y": cy + 700 + row * 60},
         })
-        edges.append({"id": f"e-{center_id}-{vid}", "source": center_id, "target": vid})
+        edges.append({"id": f"e-{center_id}-{vid}", "source": center_id, "target": vid, "sourceHandle": "b"})
+
+    # Include scan list in summary for the detail panel
+    scan_details = []
+    for s in data.get("scans", []):
+        tid = s.get("task_id", "")
+        task = tasks.get(tid, {})
+        scan_details.append({
+            "task_id": tid,
+            "tool": s.get("tool", ""),
+            "status": s.get("status", ""),
+            "command": task.get("command", ""),
+            "output_preview": task.get("output", "")[:500],
+        })
+    data["scan_details"] = scan_details
 
     return {"nodes": nodes, "edges": edges, "target": data["target"], "summary": data}
 
