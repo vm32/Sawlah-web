@@ -5,6 +5,7 @@ import {
   Map, Target, Wifi, Server, AlertTriangle, Globe, FolderOpen,
   RefreshCw, Cpu, Bug, Shield, Lock, FileText, Loader2, Zap,
   X, Terminal, ChevronDown, ChevronRight, XCircle, Square,
+  CheckCircle2, Clock, Circle,
 } from "lucide-react";
 import { PageHeader, SelectInput } from "../components/ToolForm";
 import useWebSocket from "../hooks/useWebSocket";
@@ -409,6 +410,7 @@ export default function ReconMap({ setOutput, setTitle, activeProject }) {
   const [scanTaskId, setScanTaskId] = useState(null);
   const [summary, setSummary] = useState(null);
   const [selectedNode, setSelectedNode] = useState(null);
+  const [timeline, setTimeline] = useState([]);
 
   const ws = useWebSocket();
 
@@ -445,27 +447,31 @@ export default function ReconMap({ setOutput, setTitle, activeProject }) {
     if (!scanTaskId) return;
     const interval = setInterval(async () => {
       try {
-        const res = await toolsApi.status(scanTaskId);
+        const [taskRes, tlRes] = await Promise.all([
+          toolsApi.status(scanTaskId),
+          fetch(`/api/map/auto-scan/${scanTaskId}`).then((r) => r.json()),
+        ]);
+        if (tlRes.timeline) setTimeline(tlRes.timeline);
         await loadTargets();
         const t = customTarget.trim() || selectedTarget;
         const dom = t ? t.replace(/^https?:\/\//, "").split("/")[0].split(":")[0] : "";
         if (dom && !selectedTarget) setSelectedTarget(dom);
         loadMap();
-        if (["completed", "error", "killed"].includes(res.data.status)) {
+        if (["completed", "error", "killed"].includes(taskRes.data.status)) {
           setScanning(false);
           clearInterval(interval);
           if (dom) setSelectedTarget(dom);
           setTimeout(() => loadMap(), 500);
         }
       } catch {}
-    }, 4000);
+    }, 3000);
     return () => clearInterval(interval);
   }, [scanTaskId, loadTargets, loadMap, customTarget, selectedTarget]);
 
   const handleAutoScan = async () => {
     const t = customTarget.trim() || selectedTarget;
     if (!t) return;
-    setScanning(true); ws.reset(); setOutput("");
+    setScanning(true); setTimeline([]); ws.reset(); setOutput("");
     try {
       const res = await fetch("/api/map/auto-scan", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -520,21 +526,60 @@ export default function ReconMap({ setOutput, setTitle, activeProject }) {
         </div>
       </div>
 
-      {scanning && (
-        <div className="mb-4 bg-sawlah-card border border-sawlah-red/30 rounded-xl p-3">
-          <div className="flex items-center justify-between mb-2">
+      {(scanning || timeline.length > 0) && (
+        <div className="mb-4 bg-sawlah-card border border-sawlah-border rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-sawlah-border/50">
             <div className="flex items-center gap-2">
-              <Loader2 className="w-4 h-4 text-sawlah-red animate-spin" />
-              <span className="text-xs font-semibold text-sawlah-text">All tools running in parallel...</span>
-              <span className="text-[10px] text-sawlah-dim">nmap + whatweb + dig + whois + wafw00f + sslscan + gobuster_dns</span>
+              {scanning ? <Loader2 className="w-4 h-4 text-sawlah-red animate-spin" /> : <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+              <span className="text-xs font-semibold text-sawlah-text">
+                {scanning ? "Parallel Recon Running" : "Recon Complete"}
+              </span>
+              {timeline.length > 0 && (() => {
+                const done = timeline.filter((t) => t.status === "completed" || t.status === "error" || t.status === "killed").length;
+                return <span className="text-[10px] text-sawlah-dim">{done}/{timeline.length} tools</span>;
+              })()}
             </div>
-            <button onClick={handleKillScan}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 transition-colors">
-              <Square className="w-3 h-3" /> Kill All
-            </button>
+            <div className="flex items-center gap-2">
+              {!scanning && timeline.length > 0 && (
+                <button onClick={() => setTimeline([])} className="text-[10px] text-sawlah-dim hover:text-sawlah-muted transition-colors">Dismiss</button>
+              )}
+              {scanning && (
+                <button onClick={handleKillScan}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-[10px] font-semibold hover:bg-red-700 transition-colors">
+                  <Square className="w-3 h-3" /> Kill All
+                </button>
+              )}
+            </div>
           </div>
-          <div className="h-1.5 bg-sawlah-surface rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-sawlah-red to-red-400 rounded-full animate-pulse" style={{ width: "100%" }} />
+          {timeline.length > 0 && (() => {
+            const done = timeline.filter((t) => t.status === "completed" || t.status === "error" || t.status === "killed").length;
+            const pct = Math.round((done / timeline.length) * 100);
+            return (
+              <div className="px-4 pt-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-sawlah-dim">{pct}%</span>
+                </div>
+                <div className="h-1.5 bg-sawlah-surface rounded-full overflow-hidden mb-3">
+                  <div className="h-full bg-gradient-to-r from-sawlah-red to-red-400 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })()}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1 px-3 pb-3">
+            {timeline.map((t, i) => {
+              const StatusIcon = t.status === "completed" ? CheckCircle2 : t.status === "running" ? Loader2 : t.status === "error" ? XCircle : t.status === "killed" ? Square : Clock;
+              const statusColor = t.status === "completed" ? "text-emerald-500" : t.status === "running" ? "text-sawlah-red" : t.status === "error" ? "text-red-500" : t.status === "killed" ? "text-yellow-500" : "text-sawlah-dim";
+              const borderColor = t.status === "completed" ? "border-emerald-500/30" : t.status === "running" ? "border-sawlah-red/30" : t.status === "error" ? "border-red-500/30" : "border-sawlah-border/50";
+              return (
+                <div key={i} className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border ${borderColor} bg-sawlah-surface/30`}>
+                  <StatusIcon className={`w-3.5 h-3.5 shrink-0 ${statusColor} ${t.status === "running" ? "animate-spin" : ""}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-semibold text-sawlah-text truncate">{t.label}</p>
+                    <p className="text-[9px] text-sawlah-dim truncate">{t.tool}</p>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -483,7 +483,10 @@ class AutoScanRequest(BaseModel):
     project_id: Optional[int] = None
 
 
-active_recon_tasks: dict[str, list[str]] = {}
+active_recon: dict[str, dict] = {}
+
+DNS_WORDLIST = "/usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt"
+DIR_WORDLIST = "/usr/share/seclists/Discovery/Web-Content/common.txt"
 
 
 @router.post("/auto-scan")
@@ -493,41 +496,60 @@ async def auto_scan(req: AutoScanRequest):
         return {"error": "Target is required"}
 
     domain = re.sub(r"^https?://", "", target).split("/")[0].split(":")[0]
-    if target.startswith(("http://", "https://")):
-        url = target
-    else:
-        url = f"https://{target}"
-    url_http = url.replace("https://", "http://")
+    url_https = f"https://{domain}"
+    url_http = f"http://{domain}"
 
     task_id = new_task_id()
 
-    nmap_bin = shutil.which("nmap") or TOOL_PATHS.get("nmap", "")
-    whatweb_bin = shutil.which("whatweb") or TOOL_PATHS.get("whatweb", "")
-    whois_bin = shutil.which("whois") or TOOL_PATHS.get("whois", "")
-    wafw00f_bin = shutil.which("wafw00f")
-    sslscan_bin = shutil.which("sslscan")
-    gobuster_bin = shutil.which("gobuster") or TOOL_PATHS.get("gobuster", "")
-    dig_bin = shutil.which("dig") or TOOL_PATHS.get("dig", "")
+    bins = {
+        "nmap": shutil.which("nmap"),
+        "whatweb": shutil.which("whatweb"),
+        "whois": shutil.which("whois"),
+        "wafw00f": shutil.which("wafw00f"),
+        "sslscan": shutil.which("sslscan"),
+        "gobuster": shutil.which("gobuster"),
+        "dig": shutil.which("dig"),
+        "fierce": shutil.which("fierce"),
+        "dnsrecon": shutil.which("dnsrecon"),
+        "theHarvester": shutil.which("theHarvester"),
+    }
 
-    tools_to_run = []
-    if nmap_bin:
-        tools_to_run.append(("nmap", [nmap_bin, "-sV", "-T4", "-F", domain]))
-    if whatweb_bin:
-        tools_to_run.append(("whatweb", [whatweb_bin, "-a", "3", "-v", url]))
-    if dig_bin:
-        tools_to_run.append(("dig", [dig_bin, domain, "ANY", "+noall", "+answer"]))
-    if whois_bin:
-        tools_to_run.append(("whois", [whois_bin, domain]))
-    if wafw00f_bin:
-        tools_to_run.append(("wafw00f", [wafw00f_bin, "-a", url]))
-    if sslscan_bin:
-        tools_to_run.append(("sslscan", [sslscan_bin, domain]))
-    if gobuster_bin:
-        dns_wl = "/usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt"
-        if os.path.exists(dns_wl):
-            tools_to_run.append(("gobuster_dns", [gobuster_bin, "dns", "--do", domain, "-w", dns_wl, "-q", "-t", "20"]))
+    tool_defs = []
+    if bins["nmap"]:
+        tool_defs.append(("nmap", "Port Scan", [bins["nmap"], "-sV", "-T4", "-F", domain]))
+    if bins["whatweb"]:
+        tool_defs.append(("whatweb", "Tech Detection", [bins["whatweb"], "-a", "3", "-v", url_https]))
+    if bins["dig"]:
+        tool_defs.append(("dig", "DNS Records", [bins["dig"], domain, "ANY", "+noall", "+answer"]))
+    if bins["whois"]:
+        tool_defs.append(("whois", "WHOIS Lookup", [bins["whois"], domain]))
+    if bins["wafw00f"]:
+        tool_defs.append(("wafw00f", "WAF Detection", [bins["wafw00f"], "-a", url_https]))
+    if bins["sslscan"]:
+        tool_defs.append(("sslscan", "SSL/TLS Scan", [bins["sslscan"], domain]))
+    if bins["gobuster"] and os.path.exists(DNS_WORDLIST):
+        tool_defs.append(("gobuster_dns", "Subdomain Brute", [bins["gobuster"], "dns", "--do", domain, "-w", DNS_WORDLIST, "-q", "-t", "20"]))
+    if bins["fierce"]:
+        tool_defs.append(("fierce", "DNS Brute (fierce)", [bins["fierce"], "--domain", domain]))
+    if bins["dnsrecon"]:
+        tool_defs.append(("dnsrecon", "DNS Recon", [bins["dnsrecon"], "-d", domain]))
+    if bins["theHarvester"]:
+        tool_defs.append(("theHarvester", "OSINT Harvester", [bins["theHarvester"], "-d", domain, "-b", "anubis,crtsh,dnsdumpster,hackertarget,rapiddns,sublist3r,threatminer", "-l", "200"]))
+    if bins["gobuster"] and os.path.exists(DIR_WORDLIST):
+        tool_defs.append(("gobuster_dir", "Directory Scan", [bins["gobuster"], "dir", "-u", url_https, "-w", DIR_WORDLIST, "-q", "--no-error", "-t", "20"]))
 
-    total = len(tools_to_run)
+    total = len(tool_defs)
+
+    timeline = []
+    for tool_name, label, _ in tool_defs:
+        timeline.append({"tool": tool_name, "label": label, "status": "pending", "task_id": None, "started_at": None, "finished_at": None})
+
+    recon_state = {
+        "task_id": task_id, "domain": domain, "status": "running",
+        "timeline": timeline, "sub_task_ids": [], "total": total,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+    active_recon[task_id] = recon_state
 
     async def _run():
         tasks[task_id] = {
@@ -537,24 +559,25 @@ async def auto_scan(req: AutoScanRequest):
             "finished_at": None,
         }
 
-        sub_task_ids = []
-
         def _append(text):
             tasks[task_id]["output"] += text
 
         _append(f"[*] Starting parallel auto-recon on {domain} with {total} tools\n")
-        _append(f"[*] Tools: {', '.join(t[0] for t in tools_to_run)}\n\n")
+        _append(f"[*] Tools: {', '.join(t[0] for t in tool_defs)}\n\n")
 
-        async def _run_tool(tool_name, cmd):
+        async def _run_tool(idx, tool_name, label, cmd):
             sub_tid = new_task_id()
-            sub_task_ids.append(sub_tid)
-            _append(f"[STARTED] {tool_name} (task {sub_tid})\n")
+            recon_state["sub_task_ids"].append(sub_tid)
+            recon_state["timeline"][idx]["task_id"] = sub_tid
+            recon_state["timeline"][idx]["status"] = "running"
+            recon_state["timeline"][idx]["started_at"] = datetime.now(timezone.utc).isoformat()
+            _append(f"[STARTED] {tool_name}\n")
             try:
                 output = await runner.run(sub_tid, cmd, tool_name=tool_name)
                 status = tasks.get(sub_tid, {}).get("status", "completed")
-                _append(f"\n{'='*60}\n[DONE] {tool_name} ({status})\n{'='*60}\n")
-                _append(output)
-                _append("\n")
+                recon_state["timeline"][idx]["status"] = status
+                recon_state["timeline"][idx]["finished_at"] = datetime.now(timezone.utc).isoformat()
+                _append(f"[DONE] {tool_name} ({status})\n")
 
                 if req.project_id:
                     from database import async_session, Scan
@@ -566,34 +589,31 @@ async def auto_scan(req: AutoScanRequest):
                         )
                         session.add(scan)
                         await session.commit()
-
-                return tool_name, status, output
+                return tool_name, status
             except Exception as e:
-                _append(f"\n[ERROR] {tool_name} failed: {e}\n")
-                return tool_name, "error", str(e)
+                recon_state["timeline"][idx]["status"] = "error"
+                recon_state["timeline"][idx]["finished_at"] = datetime.now(timezone.utc).isoformat()
+                _append(f"[ERROR] {tool_name}: {e}\n")
+                return tool_name, "error"
 
-        active_recon_tasks[task_id] = sub_task_ids
-
-        results = await asyncio.gather(
-            *[_run_tool(name, cmd) for name, cmd in tools_to_run],
+        await asyncio.gather(
+            *[_run_tool(i, name, label, cmd) for i, (name, label, cmd) in enumerate(tool_defs)],
             return_exceptions=True,
         )
 
-        completed = sum(1 for r in results if not isinstance(r, Exception) and r[1] == "completed")
-        errored = sum(1 for r in results if isinstance(r, Exception) or (not isinstance(r, Exception) and r[1] == "error"))
-
-        _append(f"\n{'='*60}\n[100%] Auto-Recon Complete: {completed} succeeded, {errored} failed\n{'='*60}\n")
+        done = sum(1 for t in recon_state["timeline"] if t["status"] == "completed")
+        errs = sum(1 for t in recon_state["timeline"] if t["status"] == "error")
+        _append(f"\n[100%] Auto-Recon Complete: {done} succeeded, {errs} failed\n")
         tasks[task_id]["status"] = "completed"
         tasks[task_id]["finished_at"] = datetime.now(timezone.utc).isoformat()
-
-        active_recon_tasks.pop(task_id, None)
+        recon_state["status"] = "completed"
 
         try:
             from notifications import add_notification
             add_notification(
                 title="Auto-Recon completed",
-                message=f"Recon of {domain}: {completed}/{total} tools succeeded",
-                severity="success" if errored == 0 else "warning",
+                message=f"Recon of {domain}: {done}/{total} tools succeeded",
+                severity="success" if errs == 0 else "warning",
                 tool_name="auto_recon", task_id=task_id,
             )
         except Exception:
@@ -602,26 +622,42 @@ async def auto_scan(req: AutoScanRequest):
     asyncio.create_task(_run())
 
     return {
-        "task_id": task_id,
-        "target": target,
-        "domain": domain,
-        "tools": [t[0] for t in tools_to_run],
-        "total_tools": total,
-        "status": "running",
+        "task_id": task_id, "target": target, "domain": domain,
+        "tools": [t[0] for t in tool_defs], "total_tools": total, "status": "running",
+    }
+
+
+@router.get("/auto-scan/{task_id}")
+async def auto_scan_status(task_id: str):
+    state = active_recon.get(task_id)
+    if not state:
+        task = tasks.get(task_id)
+        if task:
+            return {"status": task.get("status", "unknown"), "timeline": [], "total": 0}
+        return {"error": "Not found"}
+    return {
+        "status": state["status"], "domain": state["domain"],
+        "timeline": state["timeline"], "total": state["total"],
+        "started_at": state["started_at"],
     }
 
 
 @router.delete("/auto-scan/{task_id}")
 async def kill_auto_scan(task_id: str):
-    sub_ids = active_recon_tasks.get(task_id, [])
+    state = active_recon.get(task_id)
     killed = 0
-    for sid in sub_ids:
-        ok = await runner.kill(sid)
-        if ok:
-            killed += 1
+    if state:
+        for sid in state.get("sub_task_ids", []):
+            ok = await runner.kill(sid)
+            if ok:
+                killed += 1
+        for t in state["timeline"]:
+            if t["status"] == "running":
+                t["status"] = "killed"
+                t["finished_at"] = datetime.now(timezone.utc).isoformat()
+        state["status"] = "killed"
     await runner.kill(task_id)
     if task_id in tasks:
         tasks[task_id]["status"] = "killed"
         tasks[task_id]["finished_at"] = datetime.now(timezone.utc).isoformat()
-    active_recon_tasks.pop(task_id, None)
     return {"killed": True, "sub_tasks_killed": killed}
