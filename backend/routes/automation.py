@@ -55,6 +55,30 @@ async def run_pipeline(req: PipelineRequest):
                 "task_id": None,
             })
 
+            if stage.tool_name == "generate_report":
+                task_id = new_task_id()
+                pipelines[pipeline_id]["stages"][-1]["task_id"] = task_id
+                tasks[task_id] = {
+                    "status": "running", "tool_name": "generate_report",
+                    "command": "generate_report", "output": "",
+                    "started_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+                }
+                try:
+                    from routes.reports import _render_html
+                    if req.project_id:
+                        await _render_html(req.project_id)
+                        tasks[task_id]["output"] = "[Report generated successfully]\n"
+                        tasks[task_id]["status"] = "completed"
+                    else:
+                        tasks[task_id]["output"] = "[No project selected - cannot generate report]\n"
+                        tasks[task_id]["status"] = "error"
+                except Exception as e:
+                    tasks[task_id]["output"] = f"[Report generation failed: {e}]\n"
+                    tasks[task_id]["status"] = "error"
+                tasks[task_id]["finished_at"] = datetime.now(timezone.utc).isoformat()
+                pipelines[pipeline_id]["stages"][-1]["status"] = tasks[task_id]["status"]
+                continue
+
             from routes.tools import TOOL_BUILDERS
             builder = TOOL_BUILDERS.get(stage.tool_name)
             if not builder:
@@ -70,19 +94,20 @@ async def run_pipeline(req: PipelineRequest):
             task_id = new_task_id()
             pipelines[pipeline_id]["stages"][-1]["task_id"] = task_id
 
-            output = await runner.run(task_id, command)
+            output = await runner.run(task_id, command, tool_name=stage.tool_name)
 
-            async with async_session() as session:
-                scan = Scan(
-                    project_id=req.project_id,
-                    tool_name=stage.tool_name,
-                    command=" ".join(command),
-                    status=tasks[task_id]["status"],
-                    output=output,
-                    finished_at=datetime.now(timezone.utc),
-                )
-                session.add(scan)
-                await session.commit()
+            if req.project_id:
+                async with async_session() as session:
+                    scan = Scan(
+                        project_id=req.project_id,
+                        tool_name=stage.tool_name,
+                        command=" ".join(command),
+                        status=tasks[task_id]["status"],
+                        output=output,
+                        finished_at=datetime.now(timezone.utc),
+                    )
+                    session.add(scan)
+                    await session.commit()
 
             pipelines[pipeline_id]["stages"][-1]["status"] = tasks[task_id]["status"]
 

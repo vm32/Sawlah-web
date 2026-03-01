@@ -1,8 +1,121 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, Loader2, CheckCircle2, XCircle, ChevronDown, Activity } from "lucide-react";
 import Sidebar from "./Sidebar";
 import { NotificationBell, ToastContainer } from "./Notifications";
-import { projectsApi } from "../api/client";
+import { projectsApi, toolsApi } from "../api/client";
+
+function BackgroundTasks() {
+  const [tasks, setTasks] = useState({});
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await toolsApi.list();
+        setTasks(res.data || {});
+      } catch {}
+    };
+    load();
+    const interval = setInterval(load, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const taskList = Object.entries(tasks);
+  const running = taskList.filter(([, t]) => t.status === "running");
+  const recent = taskList
+    .filter(([, t]) => t.status !== "running")
+    .sort((a, b) => (b[1].finished_at || "").localeCompare(a[1].finished_at || ""))
+    .slice(0, 8);
+
+  const elapsed = (started) => {
+    if (!started) return "";
+    const s = Math.floor((Date.now() - new Date(started).getTime()) / 1000);
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+    return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+          running.length > 0
+            ? "bg-sawlah-red/10 text-sawlah-red border border-sawlah-red/30 hover:bg-sawlah-red/20"
+            : "text-sawlah-dim hover:text-sawlah-muted hover:bg-white/5"
+        }`}
+      >
+        {running.length > 0 ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <Activity className="w-3.5 h-3.5" />
+        )}
+        {running.length > 0 ? `${running.length} running` : "Tasks"}
+        <ChevronDown className="w-3 h-3" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1 w-80 bg-sawlah-card border border-sawlah-border rounded-xl shadow-xl z-50 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-sawlah-border/50">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-sawlah-muted">
+              Background Tasks
+            </p>
+          </div>
+
+          {running.length === 0 && recent.length === 0 && (
+            <p className="text-xs text-sawlah-dim text-center py-6">No tasks</p>
+          )}
+
+          {running.length > 0 && (
+            <div className="border-b border-sawlah-border/50">
+              {running.map(([id, t]) => (
+                <div key={id} className="px-4 py-2.5 flex items-center gap-3 hover:bg-white/[0.02]">
+                  <Loader2 className="w-3.5 h-3.5 text-sawlah-red animate-spin shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-sawlah-text truncate">
+                      {t.tool_name || "task"}
+                    </p>
+                    <p className="text-[10px] text-sawlah-dim truncate">{t.command?.slice(0, 50)}</p>
+                  </div>
+                  <span className="text-[10px] text-sawlah-red font-mono shrink-0">
+                    {elapsed(t.started_at)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {recent.length > 0 && (
+            <div className="max-h-[250px] overflow-y-auto">
+              {recent.map(([id, t]) => (
+                <div key={id} className="px-4 py-2 flex items-center gap-3 hover:bg-white/[0.02]">
+                  {t.status === "completed" ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  ) : (
+                    <XCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] text-sawlah-muted truncate">{t.tool_name}</p>
+                  </div>
+                  <span className="text-[10px] text-sawlah-dim font-mono shrink-0">{t.status}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Layout({ children, user, onLogout, activeProject, setActiveProject }) {
   const [notifications, setNotifications] = useState([]);
@@ -96,13 +209,16 @@ export default function Layout({ children, user, onLogout, activeProject, setAct
               </span>
             )}
           </div>
-          <NotificationBell
-            notifications={notifications}
-            unreadCount={unreadCount}
-            onMarkRead={markRead}
-            onMarkAllRead={markAllRead}
-            onRefresh={loadNotifications}
-          />
+          <div className="flex items-center gap-2">
+            <BackgroundTasks />
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkRead={markRead}
+              onMarkAllRead={markAllRead}
+              onRefresh={loadNotifications}
+            />
+          </div>
         </header>
         <main className="flex-1 p-6 overflow-y-auto">{children}</main>
       </div>

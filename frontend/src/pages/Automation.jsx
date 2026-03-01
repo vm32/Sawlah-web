@@ -39,6 +39,26 @@ const BLOCK_CATALOG = [
     params: {}, cmdPreview: "searchsploit {query}" },
   { id: "hydra_ssh", category: "Brute", label: "Hydra SSH", tool: "hydra", icon: "key", color: "#ec4899",
     params: { service: "ssh", passlist: "/usr/share/wordlists/rockyou.txt" }, cmdPreview: "hydra -P rockyou.txt {target} ssh" },
+  { id: "wafw00f", category: "WAF/SSL", label: "WAF Detection", tool: "wafw00f", icon: "shield", color: "#06b6d4",
+    params: { all_waf: true }, cmdPreview: "wafw00f -a {target}" },
+  { id: "sslscan", category: "WAF/SSL", label: "SSL/TLS Scan", tool: "sslscan", icon: "lock", color: "#06b6d4",
+    params: {}, cmdPreview: "sslscan {target}" },
+  { id: "whois", category: "Recon", label: "WHOIS Lookup", tool: "whois", icon: "info", color: "#ef4444",
+    params: {}, cmdPreview: "whois {target}" },
+  { id: "dig", category: "Recon", label: "DNS Records", tool: "dig", icon: "info", color: "#ef4444",
+    params: { record_type: "ANY" }, cmdPreview: "dig {target} ANY" },
+  { id: "dnsrecon", category: "Recon", label: "DNSRecon", tool: "dnsrecon", icon: "radar", color: "#ef4444",
+    params: {}, cmdPreview: "dnsrecon -d {target}" },
+  { id: "theHarvester", category: "Recon", label: "theHarvester", tool: "theHarvester", icon: "radar", color: "#ef4444",
+    params: { source: "all", limit: 200 }, cmdPreview: "theHarvester -d {target} -b all" },
+  { id: "fierce", category: "Recon", label: "Fierce DNS", tool: "fierce", icon: "radar", color: "#ef4444",
+    params: {}, cmdPreview: "fierce --domain {target}" },
+  { id: "gobuster_dns", category: "Recon", label: "Gobuster DNS", tool: "gobuster_dns", icon: "radar", color: "#ef4444",
+    params: { wordlist: "/usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt" }, cmdPreview: "gobuster dns --do {target}" },
+  { id: "wpscan", category: "Web", label: "WPScan", tool: "wpscan", icon: "search", color: "#22c55e",
+    params: {}, cmdPreview: "wpscan --url {target}" },
+  { id: "generate_report", category: "Report", label: "Generate Report", tool: "generate_report", icon: "file", color: "#64748b",
+    params: {}, cmdPreview: "Generate pentest report from all scan data" },
 ];
 
 const CATEGORIES = [...new Set(BLOCK_CATALOG.map((b) => b.category))];
@@ -49,6 +69,8 @@ const CATEGORY_COLORS = {
   Enum: "border-purple-500/40 bg-purple-500/5",
   Exploit: "border-orange-500/40 bg-orange-500/5",
   Brute: "border-pink-500/40 bg-pink-500/5",
+  "WAF/SSL": "border-cyan-500/40 bg-cyan-500/5",
+  Report: "border-slate-500/40 bg-slate-500/5",
 };
 
 const STATUS_ICONS = {

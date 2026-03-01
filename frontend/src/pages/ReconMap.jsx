@@ -1,8 +1,13 @@
 import { useState, useEffect, useCallback, memo } from "react";
 import { ReactFlow, Background, Controls, MiniMap, Handle, Position, useNodesState, useEdgesState } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Map, Target, Wifi, Server, AlertTriangle, Globe, FolderOpen, RefreshCw, Cpu, Bug } from "lucide-react";
-import { PageHeader, SelectInput } from "../components/ToolForm";
+import {
+  Map, Target, Wifi, Server, AlertTriangle, Globe, FolderOpen,
+  RefreshCw, Cpu, Bug, Shield, Lock, FileText, Loader2, Zap,
+} from "lucide-react";
+import { PageHeader, SelectInput, TextInput } from "../components/ToolForm";
+import useWebSocket from "../hooks/useWebSocket";
+import { toolsApi } from "../api/client";
 
 const TargetNode = memo(({ data }) => (
   <div className="relative group">
@@ -101,15 +106,54 @@ const ExploitNode = memo(({ data }) => (
   </div>
 ));
 
+const WafNode = memo(({ data }) => (
+  <div>
+    <Handle type="target" position={Position.Right} className="!w-2 !h-2" style={{ background: data.detected ? "#4ade80" : "#ef4444" }} />
+    <div className={`px-4 py-3 rounded-xl border-2 min-w-[140px] text-center ${
+      data.detected ? "bg-emerald-500/10 border-emerald-500/40" : "bg-red-500/10 border-red-500/40"
+    }`}>
+      <Shield className={`w-5 h-5 mx-auto mb-1 ${data.detected ? "text-emerald-400" : "text-red-400"}`} />
+      <p className="text-[11px] font-bold text-white">{data.detected ? "WAF Active" : "No WAF"}</p>
+      <p className="text-[9px] text-sawlah-muted mt-0.5">{data.name || "Unknown"}</p>
+    </div>
+  </div>
+));
+
+const WhoisNode = memo(({ data }) => (
+  <div>
+    <Handle type="target" position={Position.Left} className="!bg-amber-500 !w-2 !h-2" />
+    <div className="px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 min-w-[160px] max-w-[220px]">
+      <FileText className="w-4 h-4 text-amber-400 mb-1" />
+      <p className="text-[11px] font-bold text-amber-300">WHOIS</p>
+      {data.registrar && <p className="text-[9px] text-amber-500 truncate">{data.registrar}</p>}
+      {data.org && <p className="text-[9px] text-amber-600 truncate">{data.org}</p>}
+      {data.country && <p className="text-[9px] text-amber-700">{data.country}</p>}
+      {data.created && <p className="text-[8px] text-amber-800 mt-0.5">Created: {data.created}</p>}
+    </div>
+  </div>
+));
+
+const SslNode = memo(({ data }) => (
+  <div>
+    <Handle type="target" position={Position.Bottom} className="!bg-green-500 !w-2 !h-2" />
+    <div className="px-4 py-3 rounded-xl bg-green-500/10 border border-green-500/30 min-w-[160px] max-w-[240px]">
+      <Lock className="w-4 h-4 text-green-400 mb-1" />
+      <p className="text-[11px] font-bold text-green-300">SSL/TLS</p>
+      {data.cert_subject && <p className="text-[9px] text-green-500 truncate">{data.cert_subject}</p>}
+      {data.cert_issuer && <p className="text-[9px] text-green-600 truncate">{data.cert_issuer}</p>}
+      {data.cert_expiry && <p className="text-[8px] text-green-700 mt-0.5">Expires: {data.cert_expiry}</p>}
+      {data.protocols && data.protocols.length > 0 && (
+        <p className="text-[8px] text-green-800 mt-0.5">{data.protocols.length} protocols</p>
+      )}
+    </div>
+  </div>
+));
+
 const nodeTypes = {
-  target: TargetNode,
-  port: PortNode,
-  service: ServiceNode,
-  subdomain: SubdomainNode,
-  vuln: VulnNode,
-  directory: DirectoryNode,
-  technology: TechnologyNode,
-  exploit: ExploitNode,
+  target: TargetNode, port: PortNode, service: ServiceNode,
+  subdomain: SubdomainNode, vuln: VulnNode, directory: DirectoryNode,
+  technology: TechnologyNode, exploit: ExploitNode,
+  waf: WafNode, whois: WhoisNode, ssl: SslNode,
 };
 
 const defaultEdgeOptions = {
@@ -117,15 +161,21 @@ const defaultEdgeOptions = {
   style: { stroke: "#dc2626", strokeWidth: 1.5 },
 };
 
-export default function ReconMap({ setOutput, setTitle }) {
+export default function ReconMap({ setOutput, setTitle, activeProject }) {
   const [targets, setTargets] = useState([]);
   const [selectedTarget, setSelectedTarget] = useState("");
+  const [customTarget, setCustomTarget] = useState("");
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [loading, setLoading] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanTaskId, setScanTaskId] = useState(null);
   const [summary, setSummary] = useState(null);
 
+  const ws = useWebSocket();
+
   useEffect(() => { setTitle("Recon Map"); }, [setTitle]);
+  useEffect(() => { if (ws.output) setOutput(ws.output); }, [ws.output, setOutput]);
 
   const loadTargets = useCallback(async () => {
     try {
@@ -155,6 +205,52 @@ export default function ReconMap({ setOutput, setTitle }) {
 
   useEffect(() => { loadMap(); }, [loadMap]);
 
+  useEffect(() => {
+    if (!scanTaskId) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await toolsApi.status(scanTaskId);
+        if (["completed", "error", "killed"].includes(res.data.status)) {
+          setScanning(false);
+          clearInterval(interval);
+          await loadTargets();
+          const t = customTarget.trim() || selectedTarget;
+          if (t) {
+            setSelectedTarget(t.replace(/^https?:\/\//, "").split("/")[0].split(":")[0]);
+          }
+          setTimeout(() => loadMap(), 500);
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [scanTaskId, loadTargets, loadMap, customTarget, selectedTarget]);
+
+  const handleAutoScan = async () => {
+    const t = customTarget.trim() || selectedTarget;
+    if (!t) return;
+    setScanning(true);
+    ws.reset();
+    setOutput("");
+    try {
+      const res = await fetch("/api/map/auto-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target: t, project_id: activeProject || null }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setOutput(`Error: ${data.error}\n`);
+        setScanning(false);
+        return;
+      }
+      setScanTaskId(data.task_id);
+      ws.connect(data.task_id);
+    } catch (err) {
+      setOutput(`Error: ${err.message}\n`);
+      setScanning(false);
+    }
+  };
+
   const targetOptions = targets.map((t) => ({
     value: t.target,
     label: `${t.target} (${t.ports?.length || 0} ports, ${t.scans?.length || 0} scans)`,
@@ -164,22 +260,51 @@ export default function ReconMap({ setOutput, setTitle }) {
     <div>
       <PageHeader title="Recon Map" description="Visual target topology and attack surface" icon={Map} />
 
-      <div className="flex items-center gap-4 mb-4">
-        <div className="flex-1 max-w-md">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <div className="flex-1 min-w-[200px] max-w-md">
           <SelectInput
             value={selectedTarget}
             onChange={setSelectedTarget}
             options={targetOptions.length > 0 ? targetOptions : [{ value: "", label: "No targets scanned yet" }]}
           />
         </div>
-        <button onClick={() => { loadTargets(); loadMap(); }}
-          className="flex items-center gap-2 px-3 py-2 text-sawlah-dim hover:text-sawlah-text hover:bg-white/5 rounded-lg transition-colors text-sm">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            value={customTarget}
+            onChange={(e) => setCustomTarget(e.target.value)}
+            placeholder="New target (e.g. example.com)"
+            className="bg-sawlah-surface border border-sawlah-border rounded-lg px-3 py-2 text-xs text-sawlah-text placeholder:text-sawlah-dim/50 focus:outline-none focus:border-sawlah-red/50 w-56"
+          />
+          <button
+            onClick={handleAutoScan}
+            disabled={scanning || (!customTarget.trim() && !selectedTarget)}
+            className="flex items-center gap-2 px-4 py-2 bg-sawlah-red text-white rounded-lg text-xs font-semibold hover:bg-sawlah-red-hover transition-colors shadow-lg shadow-sawlah-red-glow disabled:opacity-40 disabled:shadow-none"
+          >
+            {scanning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+            {scanning ? "Scanning..." : "Run Full Recon"}
+          </button>
+          <button onClick={() => { loadTargets(); loadMap(); }}
+            className="flex items-center gap-2 px-3 py-2 text-sawlah-dim hover:text-sawlah-text hover:bg-white/5 rounded-lg transition-colors text-xs">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </button>
+        </div>
       </div>
 
+      {scanning && (
+        <div className="mb-4 bg-sawlah-card border border-sawlah-red/30 rounded-xl p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Loader2 className="w-4 h-4 text-sawlah-red animate-spin" />
+            <span className="text-xs font-semibold text-sawlah-text">Auto-Recon in progress...</span>
+            <span className="text-[10px] text-sawlah-dim">nmap + whatweb + whois + wafw00f + sslscan + gobuster_dns</span>
+          </div>
+          <div className="h-1.5 bg-sawlah-surface rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-sawlah-red to-red-400 rounded-full animate-pulse" style={{ width: "100%" }} />
+          </div>
+        </div>
+      )}
+
       {summary && (
-        <div className="grid grid-cols-4 md:grid-cols-7 gap-3 mb-4">
+        <div className="grid grid-cols-4 md:grid-cols-8 gap-2 mb-4">
           {[
             { label: "Ports", value: summary.ports?.length || 0, color: "text-emerald-400" },
             { label: "Services", value: summary.services?.length || 0, color: "text-cyan-400" },
@@ -188,10 +313,11 @@ export default function ReconMap({ setOutput, setTitle }) {
             { label: "Technologies", value: summary.technologies?.length || 0, color: "text-cyan-400" },
             { label: "Exploits", value: summary.exploits?.length || 0, color: "text-orange-400" },
             { label: "Vulns", value: summary.vulns?.length || 0, color: "text-red-400" },
+            { label: "WAF", value: summary.waf_status?.detected ? "Yes" : (summary.waf_status ? "No" : "N/A"), color: summary.waf_status?.detected ? "text-emerald-400" : "text-red-400" },
           ].map((s) => (
             <div key={s.label} className="bg-sawlah-card border border-sawlah-border rounded-xl px-3 py-2 text-center">
-              <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-[9px] text-sawlah-dim uppercase tracking-wider">{s.label}</p>
+              <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+              <p className="text-[8px] text-sawlah-dim uppercase tracking-wider">{s.label}</p>
             </div>
           ))}
         </div>
@@ -202,18 +328,14 @@ export default function ReconMap({ setOutput, setTitle }) {
           <div className="flex flex-col items-center justify-center h-full text-sawlah-dim">
             <Map className="w-16 h-16 mb-4 opacity-10" />
             <p className="text-lg font-semibold">No map data yet</p>
-            <p className="text-sm mt-1">Run Nmap, web scans, or subdomain enumeration to populate the map</p>
+            <p className="text-sm mt-1">Enter a target and click "Run Full Recon" to populate the map</p>
           </div>
         ) : (
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            nodeTypes={nodeTypes}
-            fitView
-            minZoom={0.2}
-            maxZoom={3}
+            nodes={nodes} edges={edges}
+            onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+            nodeTypes={nodeTypes} fitView
+            minZoom={0.2} maxZoom={3}
             defaultEdgeOptions={defaultEdgeOptions}
             proOptions={{ hideAttribution: true }}
           >
@@ -221,15 +343,13 @@ export default function ReconMap({ setOutput, setTitle }) {
             <Controls className="!bg-sawlah-surface !border-sawlah-border !rounded-lg [&>button]:!bg-sawlah-surface [&>button]:!border-sawlah-border [&>button]:!text-sawlah-muted [&>button:hover]:!bg-white/5" />
             <MiniMap
               nodeColor={(n) => {
-                if (n.type === "target") return "#dc2626";
-                if (n.type === "port") return "#4ade80";
-                if (n.type === "service") return "#22d3ee";
-                if (n.type === "subdomain") return "#60a5fa";
-                if (n.type === "technology") return "#06b6d4";
-                if (n.type === "exploit") return "#f97316";
-                if (n.type === "vuln") return "#ef4444";
-                if (n.type === "directory") return "#a855f7";
-                return "#71717a";
+                const colors = {
+                  target: "#dc2626", port: "#4ade80", service: "#22d3ee",
+                  subdomain: "#60a5fa", technology: "#06b6d4", exploit: "#f97316",
+                  vuln: "#ef4444", directory: "#a855f7",
+                  waf: "#4ade80", whois: "#f59e0b", ssl: "#22c55e",
+                };
+                return colors[n.type] || "#71717a";
               }}
               style={{ background: "#0a0a0a", border: "1px solid #2a2a2a", borderRadius: 8 }}
             />
