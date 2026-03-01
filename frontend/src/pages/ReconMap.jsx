@@ -4,7 +4,7 @@ import "@xyflow/react/dist/style.css";
 import {
   Map, Target, Wifi, Server, AlertTriangle, Globe, FolderOpen,
   RefreshCw, Cpu, Bug, Shield, Lock, FileText, Loader2, Zap,
-  X, Terminal, ChevronDown, ChevronRight,
+  X, Terminal, ChevronDown, ChevronRight, XCircle, Square,
 } from "lucide-react";
 import { PageHeader, SelectInput } from "../components/ToolForm";
 import useWebSocket from "../hooks/useWebSocket";
@@ -104,10 +104,18 @@ const SslNode = memo(({ data }) => (
     </div></div>
 ));
 
+const ErrorNode = memo(({ data }) => (
+  <div className="cursor-pointer"><Handle type="target" position={Position.Top} className="!bg-red-600 !w-2 !h-2" />
+    <div className="px-3 py-2 rounded-lg bg-red-900/30 border-2 border-red-600/50 border-dashed max-w-[240px]">
+      <XCircle className="w-3.5 h-3.5 text-red-500 mb-0.5" />
+      <p className="text-[9px] font-mono text-red-400 break-all">{data.label}</p>
+    </div></div>
+));
+
 const nodeTypes = {
   target: TargetNode, port: PortNode, service: ServiceNode, subdomain: SubdomainNode,
   vuln: VulnNode, directory: DirectoryNode, technology: TechnologyNode, exploit: ExploitNode,
-  waf: WafNode, whois: WhoisNode, ssl: SslNode,
+  waf: WafNode, whois: WhoisNode, ssl: SslNode, error: ErrorNode,
 };
 const defaultEdgeOptions = { animated: true, style: { stroke: "#dc2626", strokeWidth: 1.5 } };
 
@@ -133,13 +141,13 @@ function NodeDetailPanel({ node, onClose, scanDetails }) {
   const typeLabels = {
     target: "Target", port: "Open Port", service: "Service", subdomain: "Subdomain",
     vuln: "Vulnerability", directory: "Directory", technology: "Technology",
-    exploit: "Exploit", waf: "WAF Status", whois: "WHOIS Info", ssl: "SSL/TLS",
+    exploit: "Exploit", waf: "WAF Status", whois: "WHOIS Info", ssl: "SSL/TLS", error: "Error",
   };
   const typeColors = {
     target: "text-sawlah-red", port: "text-emerald-400", service: "text-cyan-400",
     subdomain: "text-blue-400", vuln: "text-red-400", directory: "text-purple-400",
     technology: "text-cyan-400", exploit: "text-orange-400", waf: "text-emerald-400",
-    whois: "text-amber-400", ssl: "text-green-400",
+    whois: "text-amber-400", ssl: "text-green-400", error: "text-red-500",
   };
 
   return (
@@ -193,6 +201,7 @@ function NodeDetailPanel({ node, onClose, scanDetails }) {
             <DetailRow label="Title" value={data.title} />
             <DetailRow label="Path" value={data.path} />
           </>)}
+          {type === "error" && <DetailRow label="Error" value={data.label} valueClass="text-red-400" />}
           {type === "target" && (<>
             <DetailRow label="Target" value={data.label} />
             <DetailRow label="Total Scans" value={String(data.scans)} />
@@ -437,16 +446,19 @@ export default function ReconMap({ setOutput, setTitle, activeProject }) {
     const interval = setInterval(async () => {
       try {
         const res = await toolsApi.status(scanTaskId);
+        await loadTargets();
+        const t = customTarget.trim() || selectedTarget;
+        const dom = t ? t.replace(/^https?:\/\//, "").split("/")[0].split(":")[0] : "";
+        if (dom && !selectedTarget) setSelectedTarget(dom);
+        loadMap();
         if (["completed", "error", "killed"].includes(res.data.status)) {
           setScanning(false);
           clearInterval(interval);
-          await loadTargets();
-          const t = customTarget.trim() || selectedTarget;
-          if (t) setSelectedTarget(t.replace(/^https?:\/\//, "").split("/")[0].split(":")[0]);
+          if (dom) setSelectedTarget(dom);
           setTimeout(() => loadMap(), 500);
         }
       } catch {}
-    }, 3000);
+    }, 4000);
     return () => clearInterval(interval);
   }, [scanTaskId, loadTargets, loadMap, customTarget, selectedTarget]);
 
@@ -463,6 +475,17 @@ export default function ReconMap({ setOutput, setTitle, activeProject }) {
       if (data.error) { setOutput(`Error: ${data.error}\n`); setScanning(false); return; }
       setScanTaskId(data.task_id); ws.connect(data.task_id);
     } catch (err) { setOutput(`Error: ${err.message}\n`); setScanning(false); }
+  };
+
+  const handleKillScan = async () => {
+    if (!scanTaskId) return;
+    try {
+      await fetch(`/api/map/auto-scan/${scanTaskId}`, { method: "DELETE" });
+      setScanning(false);
+      setScanTaskId(null);
+      loadTargets();
+      loadMap();
+    } catch {}
   };
 
   const onNodeClick = useCallback((_, node) => { setSelectedNode(node); }, []);
@@ -499,10 +522,16 @@ export default function ReconMap({ setOutput, setTitle, activeProject }) {
 
       {scanning && (
         <div className="mb-4 bg-sawlah-card border border-sawlah-red/30 rounded-xl p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Loader2 className="w-4 h-4 text-sawlah-red animate-spin" />
-            <span className="text-xs font-semibold text-sawlah-text">Auto-Recon in progress...</span>
-            <span className="text-[10px] text-sawlah-dim">nmap + whatweb + whois + wafw00f + sslscan + gobuster_dns</span>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 text-sawlah-red animate-spin" />
+              <span className="text-xs font-semibold text-sawlah-text">All tools running in parallel...</span>
+              <span className="text-[10px] text-sawlah-dim">nmap + whatweb + dig + whois + wafw00f + sslscan + gobuster_dns</span>
+            </div>
+            <button onClick={handleKillScan}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-semibold hover:bg-red-700 transition-colors">
+              <Square className="w-3 h-3" /> Kill All
+            </button>
           </div>
           <div className="h-1.5 bg-sawlah-surface rounded-full overflow-hidden">
             <div className="h-full bg-gradient-to-r from-sawlah-red to-red-400 rounded-full animate-pulse" style={{ width: "100%" }} />
@@ -553,7 +582,7 @@ export default function ReconMap({ setOutput, setTitle, activeProject }) {
               <Background color="#1a1a1a" gap={20} />
               <Controls className="!bg-sawlah-surface !border-sawlah-border !rounded-lg [&>button]:!bg-sawlah-surface [&>button]:!border-sawlah-border [&>button]:!text-sawlah-muted [&>button:hover]:!bg-white/5" />
               <MiniMap
-                nodeColor={(n) => ({ target:"#dc2626",port:"#4ade80",service:"#22d3ee",subdomain:"#60a5fa",technology:"#06b6d4",exploit:"#f97316",vuln:"#ef4444",directory:"#a855f7",waf:"#4ade80",whois:"#f59e0b",ssl:"#22c55e" }[n.type] || "#71717a")}
+                nodeColor={(n) => ({ target:"#dc2626",port:"#4ade80",service:"#22d3ee",subdomain:"#60a5fa",technology:"#06b6d4",exploit:"#f97316",vuln:"#ef4444",directory:"#a855f7",waf:"#4ade80",whois:"#f59e0b",ssl:"#22c55e",error:"#dc2626" }[n.type] || "#71717a")}
                 style={{ background: "#0a0a0a", border: "1px solid #2a2a2a", borderRadius: 8 }}
               />
             </ReactFlow>

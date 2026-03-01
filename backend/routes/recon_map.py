@@ -200,7 +200,7 @@ def _empty_target(name: str) -> dict:
     return {
         "target": name, "ports": [], "services": [], "subdomains": [],
         "directories": [], "technologies": [], "exploits": [], "vulns": [],
-        "server_info": {}, "scans": [],
+        "server_info": {}, "scans": [], "errors": [],
         "waf_status": None, "whois_info": None, "ssl_info": None,
     }
 
@@ -244,13 +244,21 @@ async def list_targets():
                     targets[target]["directories"].append(d)
 
             if tool == "wafw00f" and output:
-                targets[target]["waf_status"] = _parse_wafw00f(output)
+                waf = _parse_wafw00f(output)
+                if waf.get("waf_name") or waf.get("detected"):
+                    targets[target]["waf_status"] = waf
+                elif not targets[target]["waf_status"]:
+                    targets[target]["waf_status"] = waf
 
             if tool == "whois" and output:
-                targets[target]["whois_info"] = _parse_whois(output)
+                info = _parse_whois(output)
+                if info:
+                    targets[target]["whois_info"] = info
 
             if tool == "sslscan" and output:
-                targets[target]["ssl_info"] = _parse_sslscan(output)
+                info = _parse_sslscan(output)
+                if info.get("cert_subject") or info.get("protocols"):
+                    targets[target]["ssl_info"] = info
 
             if tool == "whatweb" and output:
                 for tech in _parse_whatweb_techs(output):
@@ -258,10 +266,27 @@ async def list_targets():
                     if tech["name"] not in existing:
                         targets[target]["technologies"].append(tech)
 
+            if tool == "dig" and output:
+                for line in _strip_ansi(output).splitlines():
+                    stripped = line.strip()
+                    if stripped and not stripped.startswith(";") and "\t" in stripped:
+                        targets[target].setdefault("dns_records", [])
+                        if stripped not in targets[target]["dns_records"]:
+                            targets[target]["dns_records"].append(stripped)
+
             if output:
                 for v in _parse_vulns(output):
                     if v not in targets[target]["vulns"]:
                         targets[target]["vulns"].append(v)
+
+            task_status = t.get("status", "")
+            if task_status == "error" and tool not in ("auto_recon",):
+                error_msg = f"{tool}: "
+                last_lines = [l.strip() for l in output.splitlines() if l.strip()][-3:]
+                error_msg += "; ".join(last_lines)[:120] if last_lines else "Unknown error"
+                targets[target].setdefault("errors", [])
+                if error_msg not in targets[target]["errors"]:
+                    targets[target]["errors"].append(error_msg)
 
     _merge_webrecon_sessions(targets)
     return list(targets.values())
@@ -424,6 +449,18 @@ async def get_target_map(target: str):
         })
         edges.append({"id": f"e-{center_id}-{vid}", "source": center_id, "target": vid, "sourceHandle": "b"})
 
+    # -- Errors: bottom row in red --
+    errors = data.get("errors", [])[:8]
+    for i, err in enumerate(errors):
+        node_id += 1
+        eid = f"err-{node_id}"
+        nodes.append({
+            "id": eid, "type": "error",
+            "data": {"label": err[:100]},
+            "position": {"x": cx - 200 + (i % 4) * 200, "y": cy + 800 + (i // 4) * 60},
+        })
+        edges.append({"id": f"e-{center_id}-{eid}", "source": center_id, "target": eid, "sourceHandle": "b"})
+
     # Include scan list in summary for the detail panel
     scan_details = []
     for s in data.get("scans", []):
@@ -446,6 +483,9 @@ class AutoScanRequest(BaseModel):
     project_id: Optional[int] = None
 
 
+active_recon_tasks: dict[str, list[str]] = {}
+
+
 @router.post("/auto-scan")
 async def auto_scan(req: AutoScanRequest):
     target = req.target.strip()
@@ -453,7 +493,11 @@ async def auto_scan(req: AutoScanRequest):
         return {"error": "Target is required"}
 
     domain = re.sub(r"^https?://", "", target).split("/")[0].split(":")[0]
-    url = target if target.startswith(("http://", "https://")) else f"http://{target}"
+    if target.startswith(("http://", "https://")):
+        url = target
+    else:
+        url = f"https://{target}"
+    url_http = url.replace("https://", "http://")
 
     task_id = new_task_id()
 
@@ -463,18 +507,21 @@ async def auto_scan(req: AutoScanRequest):
     wafw00f_bin = shutil.which("wafw00f")
     sslscan_bin = shutil.which("sslscan")
     gobuster_bin = shutil.which("gobuster") or TOOL_PATHS.get("gobuster", "")
+    dig_bin = shutil.which("dig") or TOOL_PATHS.get("dig", "")
 
     tools_to_run = []
     if nmap_bin:
-        tools_to_run.append(("nmap", [nmap_bin, "-sV", "-T4", "--top-ports", "1000", target]))
+        tools_to_run.append(("nmap", [nmap_bin, "-sV", "-T4", "-F", domain]))
     if whatweb_bin:
         tools_to_run.append(("whatweb", [whatweb_bin, "-a", "3", "-v", url]))
+    if dig_bin:
+        tools_to_run.append(("dig", [dig_bin, domain, "ANY", "+noall", "+answer"]))
     if whois_bin:
         tools_to_run.append(("whois", [whois_bin, domain]))
     if wafw00f_bin:
         tools_to_run.append(("wafw00f", [wafw00f_bin, "-a", url]))
     if sslscan_bin:
-        tools_to_run.append(("sslscan", [sslscan_bin, target]))
+        tools_to_run.append(("sslscan", [sslscan_bin, domain]))
     if gobuster_bin:
         dns_wl = "/usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt"
         if os.path.exists(dns_wl):
@@ -485,45 +532,69 @@ async def auto_scan(req: AutoScanRequest):
     async def _run():
         tasks[task_id] = {
             "status": "running", "tool_name": "auto_recon",
-            "command": f"auto-recon: {target} ({total} tools)",
+            "command": f"auto-recon: {domain} ({total} tools in parallel)",
             "output": "", "started_at": datetime.now(timezone.utc).isoformat(),
             "finished_at": None,
         }
 
+        sub_task_ids = []
+
         def _append(text):
             tasks[task_id]["output"] += text
 
-        for i, (tool_name, cmd) in enumerate(tools_to_run):
-            pct = int((i / total) * 100)
-            _append(f"\n{'='*60}\n[{pct}%] Running: {tool_name}\n{'='*60}\n\n")
+        _append(f"[*] Starting parallel auto-recon on {domain} with {total} tools\n")
+        _append(f"[*] Tools: {', '.join(t[0] for t in tools_to_run)}\n\n")
+
+        async def _run_tool(tool_name, cmd):
+            sub_tid = new_task_id()
+            sub_task_ids.append(sub_tid)
+            _append(f"[STARTED] {tool_name} (task {sub_tid})\n")
             try:
-                sub_tid = new_task_id()
                 output = await runner.run(sub_tid, cmd, tool_name=tool_name)
+                status = tasks.get(sub_tid, {}).get("status", "completed")
+                _append(f"\n{'='*60}\n[DONE] {tool_name} ({status})\n{'='*60}\n")
                 _append(output)
+                _append("\n")
 
                 if req.project_id:
                     from database import async_session, Scan
                     async with async_session() as session:
                         scan = Scan(
                             project_id=req.project_id, tool_name=tool_name,
-                            command=" ".join(cmd), status=tasks[sub_tid]["status"],
+                            command=" ".join(cmd), status=status,
                             output=output, finished_at=datetime.now(timezone.utc),
                         )
                         session.add(scan)
                         await session.commit()
-            except Exception as e:
-                _append(f"[ERROR] {tool_name} failed: {e}\n")
 
-        _append(f"\n{'='*60}\n[100%] Auto-Recon Complete\n{'='*60}\n")
+                return tool_name, status, output
+            except Exception as e:
+                _append(f"\n[ERROR] {tool_name} failed: {e}\n")
+                return tool_name, "error", str(e)
+
+        active_recon_tasks[task_id] = sub_task_ids
+
+        results = await asyncio.gather(
+            *[_run_tool(name, cmd) for name, cmd in tools_to_run],
+            return_exceptions=True,
+        )
+
+        completed = sum(1 for r in results if not isinstance(r, Exception) and r[1] == "completed")
+        errored = sum(1 for r in results if isinstance(r, Exception) or (not isinstance(r, Exception) and r[1] == "error"))
+
+        _append(f"\n{'='*60}\n[100%] Auto-Recon Complete: {completed} succeeded, {errored} failed\n{'='*60}\n")
         tasks[task_id]["status"] = "completed"
         tasks[task_id]["finished_at"] = datetime.now(timezone.utc).isoformat()
+
+        active_recon_tasks.pop(task_id, None)
 
         try:
             from notifications import add_notification
             add_notification(
                 title="Auto-Recon completed",
-                message=f"Full recon of {target} finished ({total} tools)",
-                severity="success", tool_name="auto_recon", task_id=task_id,
+                message=f"Recon of {domain}: {completed}/{total} tools succeeded",
+                severity="success" if errored == 0 else "warning",
+                tool_name="auto_recon", task_id=task_id,
             )
         except Exception:
             pass
@@ -533,7 +604,24 @@ async def auto_scan(req: AutoScanRequest):
     return {
         "task_id": task_id,
         "target": target,
+        "domain": domain,
         "tools": [t[0] for t in tools_to_run],
         "total_tools": total,
         "status": "running",
     }
+
+
+@router.delete("/auto-scan/{task_id}")
+async def kill_auto_scan(task_id: str):
+    sub_ids = active_recon_tasks.get(task_id, [])
+    killed = 0
+    for sid in sub_ids:
+        ok = await runner.kill(sid)
+        if ok:
+            killed += 1
+    await runner.kill(task_id)
+    if task_id in tasks:
+        tasks[task_id]["status"] = "killed"
+        tasks[task_id]["finished_at"] = datetime.now(timezone.utc).isoformat()
+    active_recon_tasks.pop(task_id, None)
+    return {"killed": True, "sub_tasks_killed": killed}
